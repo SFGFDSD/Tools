@@ -1,0 +1,1453 @@
+<!-- JISHENG-OS-APP: {"name":"收藏夹对比同步","width":1200,"height":800,"icon":"<svg class='icon-svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='18' cy='18' r='3'/><circle cx='6' cy='6' r='3'/><path d='M13 6h3a2 2 0 0 1 2 2v7'/><path d='M11 18H8a2 2 0 0 1-2-2V9'/></svg>"} -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>收藏夹对比同步工具 · Bookmark Sync</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg: #0b0f1a;
+      --card: #121826;
+      --card-hover: #182033;
+      --border: #243047;
+      --text: #e8eef9;
+      --muted: #8b9bb8;
+      --accent: #5b8cff;
+      --accent-2: #38d9a9;
+      --warn: #ffb020;
+      --danger: #ff6b7a;
+      --left: #5b8cff;
+      --right: #c084fc;
+      --both: #38d9a9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(91, 140, 255, 0.18), transparent 55%),
+        radial-gradient(900px 500px at 90% 0%, rgba(192, 132, 252, 0.14), transparent 50%),
+        radial-gradient(800px 400px at 50% 100%, rgba(56, 217, 169, 0.08), transparent 50%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+    .glass {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+    }
+
+    .drop-zone {
+      transition: all 0.25s ease;
+      border: 2px dashed var(--border);
+      background: rgba(18, 24, 38, 0.65);
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(91, 140, 255, 0.08);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(91, 140, 255, 0.12);
+    }
+
+    .drop-zone.loaded {
+      border-style: solid;
+      border-color: rgba(56, 217, 169, 0.45);
+      background: rgba(56, 217, 169, 0.06);
+    }
+
+    .drop-zone.left.dragover { border-color: var(--left); box-shadow: 0 12px 40px rgba(91,140,255,0.15); }
+    .drop-zone.right.dragover { border-color: var(--right); box-shadow: 0 12px 40px rgba(192,132,252,0.15); }
+
+    .tab-btn {
+      position: relative;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .tab-btn.active {
+      color: white;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 0;
+      height: 2px;
+      border-radius: 2px;
+      background: currentColor;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+
+    .item-row {
+      transition: background 0.15s;
+    }
+
+    .item-row:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .folder-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.1rem 0.4rem;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .url-text {
+      font-size: 0.75rem;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .scroll-panel {
+      max-height: min(58vh, 620px);
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #334155 transparent;
+    }
+
+    .scroll-panel::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scroll-panel::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      padding: 0.6rem 1rem;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #5b8cff, #4f6ef7);
+      color: white;
+      box-shadow: 0 8px 24px rgba(91, 140, 255, 0.25);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(91, 140, 255, 0.35);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.04);
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #2fbf8f, #38d9a9);
+      color: #06251b;
+      box-shadow: 0 8px 24px rgba(56, 217, 169, 0.2);
+    }
+
+    .btn-success:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .stat-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1rem 1.1rem;
+    }
+
+    .check {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    input[type="search"],
+    input[type="text"],
+    select {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 0.55rem 0.8rem;
+      outline: none;
+      width: 100%;
+    }
+
+    input[type="search"]:focus,
+    input[type="text"]:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(91,140,255,0.15);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      background: #1a2438;
+      border: 1px solid var(--border);
+      color: white;
+      padding: 0.85rem 1.1rem;
+      border-radius: 12px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.25s ease;
+      max-width: 360px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .progress-bar {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+
+    .progress-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      transition: width 0.4s ease;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+
+    .help-tip {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: rgba(91,140,255,0.15);
+      color: #9db8ff;
+      border: 1px solid rgba(91,140,255,0.3);
+      flex-shrink: 0;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.35s ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    details.folder-block > summary {
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+
+    details.folder-block > summary::-webkit-details-marker { display: none; }
+
+    .match-mode-pill {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .match-mode-pill.active {
+      color: white;
+      border-color: rgba(91,140,255,0.5);
+      background: rgba(91,140,255,0.15);
+    }
+
+    a.link {
+      color: #9db8ff;
+      text-decoration: none;
+    }
+
+    a.link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-[var(--border)] bg-[rgba(11,15,26,0.75)] backdrop-blur-md sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+               style="background: linear-gradient(135deg, #5b8cff, #c084fc);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight">收藏夹对比同步工具</h1>
+            <p class="text-xs text-[var(--muted)]">拖入两个浏览器导出的 HTML 收藏夹 · 本地对比 · 一键导出同步</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnHelp" class="btn btn-secondary text-sm py-2 px-3">使用说明</button>
+          <button id="btnReset" class="btn btn-secondary text-sm py-2 px-3" disabled>重置</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <!-- Steps / intro -->
+      <section class="glass rounded-2xl p-4 sm:p-5">
+        <div class="grid md:grid-cols-3 gap-4">
+          <div class="flex gap-3">
+            <span class="step-num">1</span>
+            <div>
+              <div class="font-semibold text-sm">导出收藏夹</div>
+              <p class="help-tip">在 Chrome / Edge / Firefox 中导出为 HTML 文件</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <span class="step-num">2</span>
+            <div>
+              <div class="font-semibold text-sm">拖入对比</div>
+              <p class="help-tip">左侧放浏览器 A，右侧放浏览器 B 的导出文件</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <span class="step-num">3</span>
+            <div>
+              <div class="font-semibold text-sm">导出同步</div>
+              <p class="help-tip">下载差异或合并文件，导入到目标浏览器完成同步</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Drop zones -->
+      <section class="grid md:grid-cols-2 gap-4">
+        <!-- Left -->
+        <div id="dropLeft" class="drop-zone left rounded-2xl p-5 sm:p-6 cursor-pointer min-h-[200px] flex flex-col">
+          <input type="file" id="fileLeft" accept=".html,.htm,text/html" class="hidden" />
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full" style="background:var(--left)"></span>
+              <span class="font-semibold">浏览器 A · 左侧</span>
+            </div>
+            <span id="badgeLeft" class="badge" style="background:rgba(91,140,255,0.15);color:#9db8ff;">待上传</span>
+          </div>
+          <div id="contentLeft" class="flex-1 flex flex-col items-center justify-center text-center gap-2 py-4">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-1"
+                 style="background:rgba(91,140,255,0.12);border:1px solid rgba(91,140,255,0.25);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9db8ff" stroke-width="1.8">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div class="font-medium">拖入收藏夹 HTML 文件</div>
+            <div class="text-sm text-[var(--muted)]">或点击选择 · 支持 Chrome / Edge / Firefox 导出格式</div>
+          </div>
+          <div id="metaLeft" class="hidden mt-2 pt-3 border-t border-[var(--border)] text-sm space-y-1"></div>
+        </div>
+
+        <!-- Right -->
+        <div id="dropRight" class="drop-zone right rounded-2xl p-5 sm:p-6 cursor-pointer min-h-[200px] flex flex-col">
+          <input type="file" id="fileRight" accept=".html,.htm,text/html" class="hidden" />
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full" style="background:var(--right)"></span>
+              <span class="font-semibold">浏览器 B · 右侧</span>
+            </div>
+            <span id="badgeRight" class="badge" style="background:rgba(192,132,252,0.15);color:#e0c3ff;">待上传</span>
+          </div>
+          <div id="contentRight" class="flex-1 flex flex-col items-center justify-center text-center gap-2 py-4">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-1"
+                 style="background:rgba(192,132,252,0.12);border:1px solid rgba(192,132,252,0.25);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e0c3ff" stroke-width="1.8">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div class="font-medium">拖入收藏夹 HTML 文件</div>
+            <div class="text-sm text-[var(--muted)]">或点击选择 · 支持 Chrome / Edge / Firefox 导出格式</div>
+          </div>
+          <div id="metaRight" class="hidden mt-2 pt-3 border-t border-[var(--border)] text-sm space-y-1"></div>
+        </div>
+      </section>
+
+      <!-- Options + actions (hidden until both loaded) -->
+      <section id="comparePanel" class="hidden fade-in space-y-4">
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="stat-card">
+            <div class="text-xs text-[var(--muted)] mb-1">仅在 A 中</div>
+            <div id="statOnlyA" class="text-2xl font-bold" style="color:var(--left)">0</div>
+            <div class="progress-bar mt-2"><span id="barOnlyA" style="width:0%;background:var(--left)"></span></div>
+          </div>
+          <div class="stat-card">
+            <div class="text-xs text-[var(--muted)] mb-1">仅在 B 中</div>
+            <div id="statOnlyB" class="text-2xl font-bold" style="color:var(--right)">0</div>
+            <div class="progress-bar mt-2"><span id="barOnlyB" style="width:0%;background:var(--right)"></span></div>
+          </div>
+          <div class="stat-card">
+            <div class="text-xs text-[var(--muted)] mb-1">两边共有</div>
+            <div id="statBoth" class="text-2xl font-bold" style="color:var(--both)">0</div>
+            <div class="progress-bar mt-2"><span id="barBoth" style="width:0%;background:var(--both)"></span></div>
+          </div>
+          <div class="stat-card">
+            <div class="text-xs text-[var(--muted)] mb-1">合计唯一 URL</div>
+            <div id="statTotal" class="text-2xl font-bold">0</div>
+            <div class="text-xs text-[var(--muted)] mt-2">标题不同: <span id="statTitleDiff">0</span></div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="glass rounded-2xl p-4 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm text-[var(--muted)]">匹配方式：</span>
+            <button type="button" data-mode="url" class="match-mode-pill active">按 URL</button>
+            <button type="button" data-mode="url-title" class="match-mode-pill">URL + 标题</button>
+            <button type="button" data-mode="normalized" class="match-mode-pill">规范化 URL</button>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btnExportDiffA" class="btn btn-secondary" title="导出仅 A 有的书签，导入到 B">
+              导出 A→B 差异
+            </button>
+            <button id="btnExportDiffB" class="btn btn-secondary" title="导出仅 B 有的书签，导入到 A">
+              导出 B→A 差异
+            </button>
+            <button id="btnExportMerge" class="btn btn-success">
+              导出完整合并收藏夹
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabs + list -->
+        <div class="glass rounded-2xl overflow-hidden">
+          <div class="flex flex-wrap items-center gap-1 border-b border-[var(--border)] px-2 pt-2">
+            <button class="tab-btn active px-4 py-2.5 text-sm font-medium rounded-t-lg" data-tab="onlyA" style="color:var(--left)">
+              仅在 A <span id="tabCountA" class="badge ml-1" style="background:rgba(91,140,255,0.15)">0</span>
+            </button>
+            <button class="tab-btn px-4 py-2.5 text-sm font-medium text-[var(--muted)] rounded-t-lg" data-tab="onlyB" style="color:inherit">
+              仅在 B <span id="tabCountB" class="badge ml-1" style="background:rgba(192,132,252,0.15);color:#e0c3ff">0</span>
+            </button>
+            <button class="tab-btn px-4 py-2.5 text-sm font-medium text-[var(--muted)] rounded-t-lg" data-tab="both">
+              共有 <span id="tabCountBoth" class="badge ml-1" style="background:rgba(56,217,169,0.12);color:#7eecc8">0</span>
+            </button>
+            <button class="tab-btn px-4 py-2.5 text-sm font-medium text-[var(--muted)] rounded-t-lg" data-tab="titleDiff">
+              标题不同 <span id="tabCountTitle" class="badge ml-1" style="background:rgba(255,176,32,0.12);color:#ffd27a">0</span>
+            </button>
+            <button class="tab-btn px-4 py-2.5 text-sm font-medium text-[var(--muted)] rounded-t-lg" data-tab="folders">
+              文件夹差异
+            </button>
+          </div>
+
+          <div class="p-3 sm:p-4 border-b border-[var(--border)] flex flex-col sm:flex-row gap-3 sm:items-center">
+            <div class="flex-1 relative">
+              <input type="search" id="searchInput" placeholder="搜索标题、URL 或文件夹…" />
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <label class="flex items-center gap-2 cursor-pointer text-[var(--muted)]">
+                <input type="checkbox" id="selectAll" class="check" />
+                全选当前列表
+              </label>
+              <select id="groupBy" class="w-auto min-w-[140px]">
+                <option value="none">不分组</option>
+                <option value="folder" selected>按文件夹</option>
+                <option value="domain">按域名</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="px-3 sm:px-4 py-2 flex flex-wrap gap-2 border-b border-[var(--border)] bg-[rgba(0,0,0,0.15)]">
+            <button id="btnCopySelected" class="btn btn-secondary py-1.5 px-3 text-xs">复制选中 URL</button>
+            <button id="btnExportSelected" class="btn btn-secondary py-1.5 px-3 text-xs">导出选中为 HTML</button>
+            <button id="btnDeselect" class="btn btn-secondary py-1.5 px-3 text-xs">取消选择</button>
+            <span id="selectedCount" class="text-xs text-[var(--muted)] self-center ml-auto">已选 0 项</span>
+          </div>
+
+          <div id="listContainer" class="scroll-panel p-2 sm:p-3">
+            <div class="empty-state">加载对比结果中…</div>
+          </div>
+        </div>
+
+        <!-- Sync guide -->
+        <section class="glass rounded-2xl p-4 sm:p-5">
+          <h2 class="font-semibold mb-3 flex items-center gap-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"/>
+              <polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            双向同步建议
+          </h2>
+          <div class="grid md:grid-cols-2 gap-4 text-sm">
+            <div class="rounded-xl p-4 border border-[var(--border)] bg-[rgba(91,140,255,0.05)]">
+              <div class="font-medium mb-2" style="color:#9db8ff">让浏览器 B 获得 A 的独有收藏</div>
+              <ol class="list-decimal list-inside space-y-1.5 text-[var(--muted)]">
+                <li>点击「导出 A→B 差异」下载 HTML</li>
+                <li>在浏览器 B 中：书签管理器 → 导入书签</li>
+                <li>选择刚下载的差异文件即可</li>
+              </ol>
+            </div>
+            <div class="rounded-xl p-4 border border-[var(--border)] bg-[rgba(192,132,252,0.05)]">
+              <div class="font-medium mb-2" style="color:#e0c3ff">让浏览器 A 获得 B 的独有收藏</div>
+              <ol class="list-decimal list-inside space-y-1.5 text-[var(--muted)]">
+                <li>点击「导出 B→A 差异」下载 HTML</li>
+                <li>在浏览器 A 中：书签管理器 → 导入书签</li>
+                <li>选择刚下载的差异文件即可</li>
+              </ol>
+            </div>
+          </div>
+          <p class="help-tip mt-3">
+            提示：也可直接「导出完整合并收藏夹」作为统一备份，再分别导入两边。本工具完全在浏览器本地运行，不会上传你的收藏夹数据。
+          </p>
+        </section>
+      </section>
+    </main>
+
+    <footer class="max-w-7xl mx-auto px-4 sm:px-6 py-8 text-center text-xs text-[var(--muted)]">
+      纯前端 · 数据不离开本机 · 兼容 Netscape / Chrome / Edge / Firefox 收藏夹 HTML 格式
+    </footer>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);">
+    <div class="glass rounded-2xl max-w-lg w-full p-5 sm:p-6 max-h-[85vh] overflow-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold">使用说明</h3>
+        <button id="closeHelp" class="btn btn-secondary py-1 px-2 text-sm">关闭</button>
+      </div>
+      <div class="space-y-3 text-sm text-[var(--muted)] leading-relaxed">
+        <p><strong class="text-white">如何导出收藏夹？</strong></p>
+        <ul class="list-disc list-inside space-y-1">
+          <li><strong class="text-white">Chrome / Edge</strong>：书签管理器 → 右上角 ⋮ → 导出书签</li>
+          <li><strong class="text-white">Firefox</strong>：书签 → 管理书签 → 导入与备份 → 导出书签到 HTML</li>
+          <li><strong class="text-white">Safari</strong>：文件 → 导出 → 书签…</li>
+        </ul>
+        <p><strong class="text-white">匹配方式说明</strong></p>
+        <ul class="list-disc list-inside space-y-1">
+          <li><strong class="text-white">按 URL</strong>：相同网址视为同一条（推荐）</li>
+          <li><strong class="text-white">URL + 标题</strong>：网址和标题都相同才算同一条</li>
+          <li><strong class="text-white">规范化 URL</strong>：忽略 http/https、www、末尾斜杠、#fragment 等差异</li>
+        </ul>
+        <p><strong class="text-white">隐私</strong></p>
+        <p>所有解析与对比均在你的浏览器本地完成，不会发送到任何服务器。</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    /**
+     * Bookmark Compare & Sync Tool
+     * Parses Netscape Bookmark File Format and compares two exports.
+     */
+
+    // ─── State ───────────────────────────────────────────────────────────────
+    const state = {
+      left: null,   // { name, bookmarks: [], folders: Set, map by key }
+      right: null,
+      matchMode: 'url',
+      activeTab: 'onlyA',
+      search: '',
+      groupBy: 'folder',
+      selected: new Set(), // keys of selected items in current view
+      result: null,
+    };
+
+    // ─── DOM ─────────────────────────────────────────────────────────────────
+    const $ = (id) => document.getElementById(id);
+    const dropLeft = $('dropLeft');
+    const dropRight = $('dropRight');
+    const fileLeft = $('fileLeft');
+    const fileRight = $('fileRight');
+    const comparePanel = $('comparePanel');
+    const listContainer = $('listContainer');
+    const toastEl = $('toast');
+
+    // ─── Utils ───────────────────────────────────────────────────────────────
+    function toast(msg, ms = 2600) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastEl._t);
+      toastEl._t = setTimeout(() => toastEl.classList.remove('show'), ms);
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function escapeAttr(s) {
+      return escapeHtml(s).replace(/'/g, '&#39;');
+    }
+
+    function getDomain(url) {
+      try {
+        return new URL(url).hostname.replace(/^www\./, '') || 'unknown';
+      } catch {
+        return 'invalid';
+      }
+    }
+
+    function normalizeUrl(url) {
+      if (!url) return '';
+      try {
+        let u = url.trim();
+        // strip common tracking junk lightly
+        const parsed = new URL(u);
+        let host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+        let path = parsed.pathname.replace(/\/+$/, '') || '';
+        // drop hash
+        // sort search params for stability
+        const params = [...parsed.searchParams.entries()]
+          .filter(([k]) => !/^(utm_|fbclid|gclid|mc_)/i.test(k))
+          .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
+        const qs = params.length
+          ? '?' + params.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+          : '';
+        // ignore protocol differences
+        return `${host}${path}${qs}`.toLowerCase();
+      } catch {
+        return url.trim().toLowerCase()
+          .replace(/^https?:\/\//, '')
+          .replace(/^www\./, '')
+          .replace(/\/+$/, '')
+          .replace(/#.*$/, '');
+      }
+    }
+
+    function makeKey(bm, mode) {
+      if (mode === 'url-title') {
+        return (bm.url || '').trim().toLowerCase() + '|||' + (bm.title || '').trim().toLowerCase();
+      }
+      if (mode === 'normalized') {
+        return normalizeUrl(bm.url);
+      }
+      return (bm.url || '').trim().toLowerCase();
+    }
+
+    function downloadText(filename, text, mime = 'text/html;charset=utf-8') {
+      const blob = new Blob([text], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    // ─── Parser: Netscape Bookmark HTML ──────────────────────────────────────
+    function parseBookmarkHtml(html, sourceName) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const bookmarks = [];
+      const folderSet = new Set();
+
+      function walk(node, folderPath) {
+        if (!node) return;
+        const children = node.children ? Array.from(node.children) : [];
+        for (let i = 0; i < children.length; i++) {
+          const el = children[i];
+          const tag = el.tagName;
+
+          if (tag === 'DT') {
+            const a = el.querySelector(':scope > A');
+            const h3 = el.querySelector(':scope > H3');
+            if (a && a.getAttribute('HREF')) {
+              const url = a.getAttribute('HREF') || a.getAttribute('href') || '';
+              const title = (a.textContent || '').trim() || url;
+              const addDate = a.getAttribute('ADD_DATE') || a.getAttribute('add_date') || '';
+              const icon = a.getAttribute('ICON') || a.getAttribute('icon') || '';
+              bookmarks.push({
+                id: bookmarks.length,
+                title,
+                url,
+                folder: folderPath.join(' / ') || '根目录',
+                folderParts: [...folderPath],
+                addDate,
+                icon,
+                source: sourceName,
+              });
+            } else if (h3) {
+              const name = (h3.textContent || '').trim() || '未命名文件夹';
+              folderSet.add([...folderPath, name].join(' / ') || name);
+              // Next sibling may be DL (some browsers nest DL inside DT, some as next sibling)
+              let dl = el.querySelector(':scope > DL');
+              if (!dl) {
+                const next = el.nextElementSibling;
+                if (next && next.tagName === 'DL') dl = next;
+              }
+              if (dl) walk(dl, [...folderPath, name]);
+            }
+            // Also walk nested DL inside DT for Chrome style
+            const nested = el.querySelectorAll(':scope > DL');
+            // already handled above for H3 case
+          } else if (tag === 'DL') {
+            walk(el, folderPath);
+          } else if (tag === 'P' || tag === 'H1' || tag === 'H3') {
+            // skip or handled
+            if (tag === 'H3') {
+              // rare top-level
+            }
+          } else {
+            walk(el, folderPath);
+          }
+        }
+      }
+
+      // Start from all top-level DLs
+      const dls = doc.querySelectorAll('DL');
+      if (dls.length) {
+        // walk the outermost structure from body to catch all
+        walk(doc.body, []);
+      } else {
+        // fallback: any anchors with href
+        doc.querySelectorAll('a[href]').forEach((a) => {
+          const url = a.getAttribute('href') || '';
+          if (!url || url.startsWith('javascript:')) return;
+          bookmarks.push({
+            id: bookmarks.length,
+            title: (a.textContent || '').trim() || url,
+            url,
+            folder: '根目录',
+            folderParts: [],
+            addDate: '',
+            icon: '',
+            source: sourceName,
+          });
+        });
+      }
+
+      // Deduplicate within same file by exact url+folder+title to avoid double-walk
+      const seen = new Set();
+      const unique = [];
+      for (const bm of bookmarks) {
+        const sig = bm.url + '|' + bm.title + '|' + bm.folder;
+        if (seen.has(sig)) continue;
+        seen.add(sig);
+        bm.id = unique.length;
+        unique.push(bm);
+      }
+
+      // Collect folders from bookmarks too
+      unique.forEach((b) => folderSet.add(b.folder));
+
+      return {
+        name: sourceName,
+        bookmarks: unique,
+        folders: folderSet,
+        rawCount: unique.length,
+      };
+    }
+
+    // ─── Compare ─────────────────────────────────────────────────────────────
+    function buildMap(side, mode) {
+      const map = new Map(); // key -> bookmark (first occurrence; keep list of dups)
+      for (const bm of side.bookmarks) {
+        const key = makeKey(bm, mode);
+        if (!key) continue;
+        if (!map.has(key)) {
+          map.set(key, { primary: bm, all: [bm] });
+        } else {
+          map.get(key).all.push(bm);
+        }
+      }
+      return map;
+    }
+
+    function compare() {
+      if (!state.left || !state.right) return;
+      const mode = state.matchMode;
+      const mapA = buildMap(state.left, mode);
+      const mapB = buildMap(state.right, mode);
+
+      const onlyA = [];
+      const onlyB = [];
+      const both = [];
+      const titleDiff = [];
+
+      for (const [key, entry] of mapA) {
+        if (!mapB.has(key)) {
+          onlyA.push({ key, a: entry.primary, b: null });
+        } else {
+          const bEntry = mapB.get(key);
+          const item = { key, a: entry.primary, b: bEntry.primary };
+          both.push(item);
+          if (
+            mode !== 'url-title' &&
+            (entry.primary.title || '').trim() !== (bEntry.primary.title || '').trim()
+          ) {
+            titleDiff.push(item);
+          }
+        }
+      }
+      for (const [key, entry] of mapB) {
+        if (!mapA.has(key)) {
+          onlyB.push({ key, a: null, b: entry.primary });
+        }
+      }
+
+      // Folder diffs
+      const foldersA = new Set(state.left.folders);
+      const foldersB = new Set(state.right.folders);
+      const folderOnlyA = [...foldersA].filter((f) => !foldersB.has(f)).sort();
+      const folderOnlyB = [...foldersB].filter((f) => !foldersA.has(f)).sort();
+      const folderBoth = [...foldersA].filter((f) => foldersB.has(f)).sort();
+
+      // Sort
+      const byTitle = (x) => (x.a || x.b).title.toLowerCase();
+      onlyA.sort((a, b) => byTitle(a).localeCompare(byTitle(b), 'zh'));
+      onlyB.sort((a, b) => byTitle(a).localeCompare(byTitle(b), 'zh'));
+      both.sort((a, b) => byTitle(a).localeCompare(byTitle(b), 'zh'));
+      titleDiff.sort((a, b) => byTitle(a).localeCompare(byTitle(b), 'zh'));
+
+      state.result = { onlyA, onlyB, both, titleDiff, folderOnlyA, folderOnlyB, folderBoth, mapA, mapB };
+      state.selected.clear();
+      updateStats();
+      renderList();
+    }
+
+    function updateStats() {
+      const r = state.result;
+      if (!r) return;
+      const na = r.onlyA.length;
+      const nb = r.onlyB.length;
+      const nboth = r.both.length;
+      const total = na + nb + nboth;
+      $('statOnlyA').textContent = na;
+      $('statOnlyB').textContent = nb;
+      $('statBoth').textContent = nboth;
+      $('statTotal').textContent = total;
+      $('statTitleDiff').textContent = r.titleDiff.length;
+      $('tabCountA').textContent = na;
+      $('tabCountB').textContent = nb;
+      $('tabCountBoth').textContent = nboth;
+      $('tabCountTitle').textContent = r.titleDiff.length;
+
+      const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
+      $('barOnlyA').style.width = pct(na) + '%';
+      $('barOnlyB').style.width = pct(nb) + '%';
+      $('barBoth').style.width = pct(nboth) + '%';
+    }
+
+    // ─── Render list ─────────────────────────────────────────────────────────
+    function getActiveItems() {
+      const r = state.result;
+      if (!r) return [];
+      switch (state.activeTab) {
+        case 'onlyA': return r.onlyA;
+        case 'onlyB': return r.onlyB;
+        case 'both': return r.both;
+        case 'titleDiff': return r.titleDiff;
+        default: return [];
+      }
+    }
+
+    function filterItems(items) {
+      const q = state.search.trim().toLowerCase();
+      if (!q) return items;
+      return items.filter((it) => {
+        const bm = it.a || it.b;
+        const other = it.a && it.b ? it.b : null;
+        const hay = [
+          bm.title, bm.url, bm.folder,
+          other?.title, other?.url, other?.folder,
+        ].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    function groupItems(items) {
+      if (state.groupBy === 'none') {
+        return [{ name: null, items }];
+      }
+      const groups = new Map();
+      for (const it of items) {
+        const bm = it.a || it.b;
+        let g;
+        if (state.groupBy === 'domain') g = getDomain(bm.url);
+        else g = bm.folder || '根目录';
+        if (!groups.has(g)) groups.set(g, []);
+        groups.get(g).push(it);
+      }
+      return [...groups.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0], 'zh'))
+        .map(([name, items]) => ({ name, items }));
+    }
+
+    function renderBookmarkRow(it) {
+      const isBoth = !!(it.a && it.b);
+      const bm = it.a || it.b;
+      const checked = state.selected.has(it.key) ? 'checked' : '';
+      const sideBadge = isBoth
+        ? `<span class="badge" style="background:rgba(56,217,169,0.12);color:#7eecc8">共有</span>`
+        : it.a
+          ? `<span class="badge" style="background:rgba(91,140,255,0.15);color:#9db8ff">仅 A</span>`
+          : `<span class="badge" style="background:rgba(192,132,252,0.15);color:#e0c3ff">仅 B</span>`;
+
+      let titleBlock = `<div class="font-medium text-sm truncate" title="${escapeAttr(bm.title)}">${escapeHtml(bm.title)}</div>`;
+      if (state.activeTab === 'titleDiff' && it.a && it.b) {
+        titleBlock = `
+          <div class="text-sm space-y-0.5">
+            <div class="truncate"><span class="text-xs text-[var(--muted)]">A:</span> ${escapeHtml(it.a.title)}</div>
+            <div class="truncate"><span class="text-xs text-[var(--muted)]">B:</span> ${escapeHtml(it.b.title)}</div>
+          </div>`;
+      }
+
+      const folderLabel = isBoth && it.a.folder !== it.b.folder
+        ? `<span class="folder-chip" title="A: ${escapeAttr(it.a.folder)} | B: ${escapeAttr(it.b.folder)}">A: ${escapeHtml(it.a.folder)} · B: ${escapeHtml(it.b.folder)}</span>`
+        : `<span class="folder-chip" title="${escapeAttr(bm.folder)}">${escapeHtml(bm.folder)}</span>`;
+
+      return `
+        <div class="item-row flex items-start gap-3 px-3 py-2.5 rounded-xl border border-transparent hover:border-[var(--border)]" data-key="${escapeAttr(it.key)}">
+          <input type="checkbox" class="check mt-1 item-check" data-key="${escapeAttr(it.key)}" ${checked} />
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap mb-0.5">
+              ${titleBlock}
+              ${sideBadge}
+            </div>
+            <div class="url-text mono" title="${escapeAttr(bm.url)}">
+              <a class="link" href="${escapeAttr(bm.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(bm.url)}</a>
+            </div>
+            <div class="mt-1.5 flex flex-wrap gap-1.5">${folderLabel}</div>
+          </div>
+        </div>`;
+    }
+
+    function renderList() {
+      if (state.activeTab === 'folders') {
+        renderFolders();
+        updateSelectedCount();
+        return;
+      }
+
+      const items = filterItems(getActiveItems());
+      if (!items.length) {
+        listContainer.innerHTML = `<div class="empty-state">没有匹配的书签</div>`;
+        updateSelectedCount();
+        $('selectAll').checked = false;
+        return;
+      }
+
+      const groups = groupItems(items);
+      let html = '';
+      for (const g of groups) {
+        if (g.name !== null) {
+          html += `
+            <details class="folder-block mb-2" open>
+              <summary class="px-3 py-2 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[var(--border)] flex items-center justify-between gap-2">
+                <span class="font-medium text-sm truncate">${escapeHtml(g.name)}</span>
+                <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--muted)">${g.items.length}</span>
+              </summary>
+              <div class="mt-1 space-y-0.5 pl-1">
+                ${g.items.map(renderBookmarkRow).join('')}
+              </div>
+            </details>`;
+        } else {
+          html += `<div class="space-y-0.5">${g.items.map(renderBookmarkRow).join('')}</div>`;
+        }
+      }
+      listContainer.innerHTML = html;
+      bindItemChecks();
+      syncSelectAll();
+      updateSelectedCount();
+    }
+
+    function renderFolders() {
+      const r = state.result;
+      if (!r) return;
+      const q = state.search.trim().toLowerCase();
+      const filterF = (arr) => q ? arr.filter((f) => f.toLowerCase().includes(q)) : arr;
+
+      const onlyA = filterF(r.folderOnlyA);
+      const onlyB = filterF(r.folderOnlyB);
+      const both = filterF(r.folderBoth);
+
+      listContainer.innerHTML = `
+        <div class="grid md:grid-cols-3 gap-3 p-1">
+          <div class="rounded-xl border border-[var(--border)] p-3">
+            <div class="font-semibold text-sm mb-2" style="color:var(--left)">仅 A 有的文件夹 (${onlyA.length})</div>
+            <div class="space-y-1 max-h-[50vh] overflow-auto">
+              ${onlyA.length ? onlyA.map((f) => `<div class="text-sm px-2 py-1.5 rounded-lg bg-[rgba(91,140,255,0.06)] truncate" title="${escapeAttr(f)}">${escapeHtml(f)}</div>`).join('') : '<div class="text-sm text-[var(--muted)]">无</div>'}
+            </div>
+          </div>
+          <div class="rounded-xl border border-[var(--border)] p-3">
+            <div class="font-semibold text-sm mb-2" style="color:var(--right)">仅 B 有的文件夹 (${onlyB.length})</div>
+            <div class="space-y-1 max-h-[50vh] overflow-auto">
+              ${onlyB.length ? onlyB.map((f) => `<div class="text-sm px-2 py-1.5 rounded-lg bg-[rgba(192,132,252,0.06)] truncate" title="${escapeAttr(f)}">${escapeHtml(f)}</div>`).join('') : '<div class="text-sm text-[var(--muted)]">无</div>'}
+            </div>
+          </div>
+          <div class="rounded-xl border border-[var(--border)] p-3">
+            <div class="font-semibold text-sm mb-2" style="color:var(--both)">共有文件夹 (${both.length})</div>
+            <div class="space-y-1 max-h-[50vh] overflow-auto">
+              ${both.length ? both.map((f) => `<div class="text-sm px-2 py-1.5 rounded-lg bg-[rgba(56,217,169,0.06)] truncate" title="${escapeAttr(f)}">${escapeHtml(f)}</div>`).join('') : '<div class="text-sm text-[var(--muted)]">无</div>'}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function bindItemChecks() {
+      listContainer.querySelectorAll('.item-check').forEach((cb) => {
+        cb.addEventListener('change', () => {
+          const key = cb.dataset.key;
+          if (cb.checked) state.selected.add(key);
+          else state.selected.delete(key);
+          updateSelectedCount();
+          syncSelectAll();
+        });
+      });
+    }
+
+    function syncSelectAll() {
+      const boxes = [...listContainer.querySelectorAll('.item-check')];
+      const all = boxes.length && boxes.every((b) => b.checked);
+      $('selectAll').checked = all;
+    }
+
+    function updateSelectedCount() {
+      $('selectedCount').textContent = `已选 ${state.selected.size} 项`;
+    }
+
+    // ─── Export ──────────────────────────────────────────────────────────────
+    function bookmarksToHtml(bookmarks, title = 'Bookmarks') {
+      // Group by folder path for nested structure
+      const root = { name: '', children: new Map(), bookmarks: [] };
+
+      function ensurePath(parts) {
+        let node = root;
+        for (const part of parts) {
+          if (!node.children.has(part)) {
+            node.children.set(part, { name: part, children: new Map(), bookmarks: [] });
+          }
+          node = node.children.get(part);
+        }
+        return node;
+      }
+
+      for (const bm of bookmarks) {
+        const parts = bm.folderParts && bm.folderParts.length
+          ? bm.folderParts
+          : (bm.folder && bm.folder !== '根目录' ? bm.folder.split(' / ') : []);
+        const node = ensurePath(parts);
+        node.bookmarks.push(bm);
+      }
+
+      function renderNode(node, indent) {
+        const pad = '    '.repeat(indent);
+        let out = '';
+        // bookmarks at this level
+        for (const bm of node.bookmarks) {
+          const add = bm.addDate ? ` ADD_DATE="${escapeAttr(bm.addDate)}"` : '';
+          out += `${pad}<DT><A HREF="${escapeAttr(bm.url)}"${add}>${escapeHtml(bm.title)}</A>\n`;
+        }
+        // child folders
+        const folders = [...node.children.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+        for (const child of folders) {
+          out += `${pad}<DT><H3>${escapeHtml(child.name)}</H3>\n`;
+          out += `${pad}<DL><p>\n`;
+          out += renderNode(child, indent + 1);
+          out += `${pad}</DL><p>\n`;
+        }
+        return out;
+      }
+
+      const body = renderNode(root, 2);
+      return `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<!-- This is an automatically generated file.
+     It will be read and overwritten.
+     DO NOT EDIT! -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>${escapeHtml(title)}</TITLE>
+<H1>${escapeHtml(title)}</H1>
+<DL><p>
+${body}</DL><p>
+`;
+    }
+
+    function getBookmarksByKeys(keys, preferSide = 'a') {
+      const r = state.result;
+      if (!r) return [];
+      const list = [];
+      const all = [...r.onlyA, ...r.onlyB, ...r.both];
+      const map = new Map(all.map((it) => [it.key, it]));
+      for (const key of keys) {
+        const it = map.get(key);
+        if (!it) continue;
+        if (preferSide === 'a' && it.a) list.push(it.a);
+        else if (preferSide === 'b' && it.b) list.push(it.b);
+        else list.push(it.a || it.b);
+      }
+      return list;
+    }
+
+    function exportDiffAtoB() {
+      const bms = state.result.onlyA.map((it) => it.a);
+      if (!bms.length) return toast('没有仅在 A 中的书签可导出');
+      const html = bookmarksToHtml(bms, 'Bookmarks from A (missing in B)');
+      downloadText(`bookmarks_A_to_B_diff_${Date.now()}.html`, html);
+      toast(`已导出 ${bms.length} 条 · 请导入到浏览器 B`);
+    }
+
+    function exportDiffBtoA() {
+      const bms = state.result.onlyB.map((it) => it.b);
+      if (!bms.length) return toast('没有仅在 B 中的书签可导出');
+      const html = bookmarksToHtml(bms, 'Bookmarks from B (missing in A)');
+      downloadText(`bookmarks_B_to_A_diff_${Date.now()}.html`, html);
+      toast(`已导出 ${bms.length} 条 · 请导入到浏览器 A`);
+    }
+
+    function exportMerge() {
+      // Merge: all unique by current match mode; prefer A title/folder when both
+      const r = state.result;
+      const merged = [];
+      const seen = new Set();
+      for (const it of r.both) {
+        merged.push(it.a);
+        seen.add(it.key);
+      }
+      for (const it of r.onlyA) {
+        if (!seen.has(it.key)) {
+          merged.push(it.a);
+          seen.add(it.key);
+        }
+      }
+      for (const it of r.onlyB) {
+        if (!seen.has(it.key)) {
+          merged.push(it.b);
+          seen.add(it.key);
+        }
+      }
+      const html = bookmarksToHtml(merged, 'Merged Bookmarks');
+      downloadText(`bookmarks_merged_${Date.now()}.html`, html);
+      toast(`已导出合并收藏夹 · 共 ${merged.length} 条`);
+    }
+
+    function exportSelected() {
+      if (!state.selected.size) return toast('请先勾选书签');
+      const prefer = state.activeTab === 'onlyB' ? 'b' : 'a';
+      const bms = getBookmarksByKeys(state.selected, prefer);
+      if (!bms.length) return toast('未找到选中书签');
+      const html = bookmarksToHtml(bms, 'Selected Bookmarks');
+      downloadText(`bookmarks_selected_${Date.now()}.html`, html);
+      toast(`已导出选中的 ${bms.length} 条`);
+    }
+
+    async function copySelectedUrls() {
+      if (!state.selected.size) return toast('请先勾选书签');
+      const prefer = state.activeTab === 'onlyB' ? 'b' : 'a';
+      const bms = getBookmarksByKeys(state.selected, prefer);
+      const text = bms.map((b) => b.url).join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        toast(`已复制 ${bms.length} 个 URL`);
+      } catch {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        toast(`已复制 ${bms.length} 个 URL`);
+      }
+    }
+
+    // ─── File loading ────────────────────────────────────────────────────────
+    function formatMeta(side, sideKey) {
+      const el = sideKey === 'left' ? $('metaLeft') : $('metaRight');
+      const content = sideKey === 'left' ? $('contentLeft') : $('contentRight');
+      const badge = sideKey === 'left' ? $('badgeLeft') : $('badgeRight');
+      const drop = sideKey === 'left' ? dropLeft : dropRight;
+
+      content.innerHTML = `
+        <div class="w-full text-left space-y-2">
+          <div class="flex items-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${sideKey === 'left' ? '#9db8ff' : '#e0c3ff'}" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span class="font-medium truncate">${escapeHtml(side.name)}</span>
+          </div>
+          <div class="text-sm text-[var(--muted)]">点击或拖入新文件可替换</div>
+        </div>`;
+      el.classList.remove('hidden');
+      el.innerHTML = `
+        <div class="flex justify-between"><span class="text-[var(--muted)]">书签数量</span><span class="font-semibold mono">${side.rawCount}</span></div>
+        <div class="flex justify-between"><span class="text-[var(--muted)]">文件夹数</span><span class="font-semibold mono">${side.folders.size}</span></div>
+      `;
+      badge.textContent = '已加载';
+      badge.style.background = 'rgba(56,217,169,0.15)';
+      badge.style.color = '#7eecc8';
+      drop.classList.add('loaded');
+    }
+
+    async function handleFile(file, sideKey) {
+      if (!file) return;
+      const name = file.name || 'bookmarks.html';
+      if (!/\.html?$/i.test(name) && file.type && !file.type.includes('html') && !file.type.includes('text')) {
+        toast('请上传 HTML 格式的收藏夹导出文件');
+        return;
+      }
+      try {
+        const text = await file.text();
+        if (!/netscape-bookmark|<\/a>|<DL|<H3|<DT/i.test(text) && !/<a\s+[^>]*href/i.test(text)) {
+          toast('文件内容不像是浏览器收藏夹导出，仍尝试解析…');
+        }
+        const parsed = parseBookmarkHtml(text, name);
+        if (!parsed.bookmarks.length) {
+          toast('未解析到任何书签，请确认导出格式正确');
+          return;
+        }
+        state[sideKey] = parsed;
+        formatMeta(parsed, sideKey);
+        $('btnReset').disabled = false;
+        toast(`${sideKey === 'left' ? 'A' : 'B'} 已加载 · ${parsed.rawCount} 条书签`);
+        tryCompare();
+      } catch (e) {
+        console.error(e);
+        toast('读取文件失败：' + (e.message || '未知错误'));
+      }
+    }
+
+    function tryCompare() {
+      if (state.left && state.right) {
+        comparePanel.classList.remove('hidden');
+        compare();
+        toast('对比完成');
+      }
+    }
+
+    function resetAll() {
+      state.left = null;
+      state.right = null;
+      state.result = null;
+      state.selected.clear();
+      state.activeTab = 'onlyA';
+      state.search = '';
+      $('searchInput').value = '';
+      fileLeft.value = '';
+      fileRight.value = '';
+      comparePanel.classList.add('hidden');
+      $('btnReset').disabled = true;
+
+      ['Left', 'Right'].forEach((side) => {
+        const drop = side === 'Left' ? dropLeft : dropRight;
+        drop.classList.remove('loaded');
+        $(`badge${side}`).textContent = '待上传';
+        $(`badge${side}`).style.background = side === 'Left' ? 'rgba(91,140,255,0.15)' : 'rgba(192,132,252,0.15)';
+        $(`badge${side}`).style.color = side === 'Left' ? '#9db8ff' : '#e0c3ff';
+        $(`meta${side}`).classList.add('hidden');
+        $(`meta${side}`).innerHTML = '';
+        $(`content${side}`).innerHTML = `
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-1"
+               style="background:${side === 'Left' ? 'rgba(91,140,255,0.12)' : 'rgba(192,132,252,0.12)'};border:1px solid ${side === 'Left' ? 'rgba(91,140,255,0.25)' : 'rgba(192,132,252,0.25)'};">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${side === 'Left' ? '#9db8ff' : '#e0c3ff'}" stroke-width="1.8">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div class="font-medium">拖入收藏夹 HTML 文件</div>
+          <div class="text-sm text-[var(--muted)]">或点击选择 · 支持 Chrome / Edge / Firefox 导出格式</div>`;
+      });
+
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        const on = btn.dataset.tab === 'onlyA';
+        btn.classList.toggle('active', on);
+        if (btn.dataset.tab === 'onlyA') btn.style.color = 'var(--left)';
+        else btn.style.color = '';
+        btn.classList.toggle('text-[var(--muted)]', !on);
+      });
+      toast('已重置');
+    }
+
+    // ─── Drop zone wiring ────────────────────────────────────────────────────
+    function setupDrop(zone, input, sideKey) {
+      zone.addEventListener('click', (e) => {
+        if (e.target.closest('a')) return;
+        input.click();
+      });
+      input.addEventListener('change', () => {
+        if (input.files?.[0]) handleFile(input.files[0], sideKey);
+      });
+
+      ['dragenter', 'dragover'].forEach((ev) => {
+        zone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach((ev) => {
+        zone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.remove('dragover');
+        });
+      });
+      zone.addEventListener('drop', (e) => {
+        const file = e.dataTransfer?.files?.[0];
+        if (file) handleFile(file, sideKey);
+      });
+    }
+
+    setupDrop(dropLeft, fileLeft, 'left');
+    setupDrop(dropRight, fileRight, 'right');
+
+    // Prevent browser opening files when dropped outside
+    ['dragover', 'drop'].forEach((ev) => {
+      window.addEventListener(ev, (e) => {
+        if (e.target.closest?.('.drop-zone')) return;
+        e.preventDefault();
+      });
+    });
+
+    // ─── UI events ───────────────────────────────────────────────────────────
+    document.querySelectorAll('.match-mode-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.match-mode-pill').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.matchMode = btn.dataset.mode;
+        if (state.left && state.right) {
+          compare();
+          toast('已按新匹配方式重新对比');
+        }
+      });
+    });
+
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach((b) => {
+          b.classList.remove('active');
+          b.classList.add('text-[var(--muted)]');
+          b.style.color = '';
+        });
+        btn.classList.add('active');
+        btn.classList.remove('text-[var(--muted)]');
+        if (btn.dataset.tab === 'onlyA') btn.style.color = 'var(--left)';
+        if (btn.dataset.tab === 'onlyB') btn.style.color = 'var(--right)';
+        state.activeTab = btn.dataset.tab;
+        state.selected.clear();
+        renderList();
+      });
+    });
+
+    $('searchInput').addEventListener('input', (e) => {
+      state.search = e.target.value;
+      renderList();
+    });
+
+    $('groupBy').addEventListener('change', (e) => {
+      state.groupBy = e.target.value;
+      renderList();
+    });
+
+    $('selectAll').addEventListener('change', (e) => {
+      const boxes = listContainer.querySelectorAll('.item-check');
+      boxes.forEach((cb) => {
+        cb.checked = e.target.checked;
+        if (e.target.checked) state.selected.add(cb.dataset.key);
+        else state.selected.delete(cb.dataset.key);
+      });
+      updateSelectedCount();
+    });
+
+    $('btnDeselect').addEventListener('click', () => {
+      state.selected.clear();
+      listContainer.querySelectorAll('.item-check').forEach((cb) => { cb.checked = false; });
+      $('selectAll').checked = false;
+      updateSelectedCount();
+    });
+
+    $('btnCopySelected').addEventListener('click', copySelectedUrls);
+    $('btnExportSelected').addEventListener('click', exportSelected);
+    $('btnExportDiffA').addEventListener('click', exportDiffAtoB);
+    $('btnExportDiffB').addEventListener('click', exportDiffBtoA);
+    $('btnExportMerge').addEventListener('click', exportMerge);
+    $('btnReset').addEventListener('click', resetAll);
+
+    $('btnHelp').addEventListener('click', () => {
+      $('helpModal').classList.remove('hidden');
+      $('helpModal').classList.add('flex');
+    });
+    $('closeHelp').addEventListener('click', () => {
+      $('helpModal').classList.add('hidden');
+      $('helpModal').classList.remove('flex');
+    });
+    $('helpModal').addEventListener('click', (e) => {
+      if (e.target === $('helpModal')) {
+        $('helpModal').classList.add('hidden');
+        $('helpModal').classList.remove('flex');
+      }
+    });
+  </script>
+</body>
+</html>
