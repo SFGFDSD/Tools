@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文章多版本对比评审</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root {
+      --panel-min: 320px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(59, 130, 246, 0.18), transparent 60%),
+        radial-gradient(900px 500px at 90% 0%, rgba(16, 185, 129, 0.14), transparent 55%),
+        linear-gradient(180deg, #0b1220 0%, #111827 40%, #0f172a 100%);
+      color: #e5e7eb;
+    }
+
+    .glass {
+      background: rgba(17, 24, 39, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .panel {
+      min-width: var(--panel-min);
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      border-radius: 16px;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .panel.best {
+      border-color: rgba(52, 211, 153, 0.85);
+      box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.35), 0 12px 40px rgba(16, 185, 129, 0.2);
+    }
+
+    .panel.selected-compare {
+      border-color: rgba(96, 165, 250, 0.9);
+      box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.3), 0 12px 40px rgba(59, 130, 246, 0.18);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      flex: 1;
+      min-width: 100px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: #f8fafc;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    .panel-title:hover,
+    .panel-title:focus {
+      border-color: rgba(148, 163, 184, 0.35);
+      background: rgba(2, 6, 23, 0.35);
+    }
+
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(30, 41, 59, 0.8);
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .icon-btn:hover {
+      background: rgba(51, 65, 85, 0.95);
+      border-color: rgba(148, 163, 184, 0.45);
+    }
+
+    .icon-btn.active {
+      background: rgba(37, 99, 235, 0.35);
+      border-color: rgba(96, 165, 250, 0.7);
+      color: #dbeafe;
+    }
+
+    .icon-btn.best-btn.active {
+      background: rgba(5, 150, 105, 0.4);
+      border-color: rgba(52, 211, 153, 0.8);
+      color: #d1fae5;
+    }
+
+    .icon-btn.danger:hover {
+      background: rgba(127, 29, 29, 0.55);
+      border-color: rgba(248, 113, 113, 0.5);
+      color: #fecaca;
+    }
+
+    .panel-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .panel-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #94a3b8;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      background: rgba(2, 6, 23, 0.25);
+    }
+
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(51, 65, 85, 0.5);
+      border: 1px solid rgba(100, 116, 139, 0.25);
+    }
+
+    .editor,
+    .preview {
+      flex: 1;
+      width: 100%;
+      min-height: 280px;
+      padding: 14px 16px;
+      border: none;
+      outline: none;
+      resize: none;
+      background: transparent;
+      color: #e5e7eb;
+      font-size: 14px;
+      line-height: 1.75;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .preview {
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .preview h1, .preview h2, .preview h3 {
+      margin: 0.8em 0 0.4em;
+      line-height: 1.35;
+      color: #f8fafc;
+    }
+
+    .preview p {
+      margin: 0.55em 0;
+    }
+
+    .preview ul, .preview ol {
+      margin: 0.5em 0;
+      padding-left: 1.4em;
+    }
+
+    .board {
+      display: grid;
+      gap: 14px;
+      padding: 14px;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(var(--panel-min), 1fr);
+      overflow-x: auto;
+      overflow-y: hidden;
+      min-height: calc(100vh - 150px);
+      align-items: stretch;
+      scroll-behavior: smooth;
+    }
+
+    .board.rows {
+      grid-auto-flow: row;
+      grid-auto-columns: initial;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    .board.compact .panel {
+      min-width: 260px;
+    }
+
+    .board::-webkit-scrollbar,
+    .preview::-webkit-scrollbar,
+    .editor::-webkit-scrollbar {
+      height: 10px;
+      width: 10px;
+    }
+
+    .board::-webkit-scrollbar-thumb,
+    .preview::-webkit-scrollbar-thumb,
+    .editor::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.55);
+      border-radius: 999px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 50;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #e2e8f0;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.2s ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .diff-added {
+      background: rgba(16, 185, 129, 0.22);
+      color: #a7f3d0;
+      border-radius: 3px;
+      padding: 0 2px;
+    }
+
+    .diff-removed {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fecaca;
+      text-decoration: line-through;
+      border-radius: 3px;
+      padding: 0 2px;
+    }
+
+    .score-input {
+      width: 54px;
+      background: rgba(2, 6, 23, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #f8fafc;
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .note-input {
+      width: 100%;
+      min-height: 54px;
+      resize: vertical;
+      background: rgba(2, 6, 23, 0.35);
+      border: none;
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+      color: #cbd5e1;
+      padding: 8px 12px;
+      font-size: 12px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .toolbar-select,
+    .toolbar-input {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, #2563eb, #0ea5e9);
+      border: none;
+      color: white;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    .primary-btn:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    .ghost-btn {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .ghost-btn:hover {
+      background: rgba(51, 65, 85, 0.85);
+    }
+
+    .empty-hint {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 50vh;
+      color: #94a3b8;
+      text-align: center;
+      gap: 10px;
+      padding: 40px 20px;
+    }
+
+    .rank-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.2);
+      color: #fcd34d;
+      border: 1px solid rgba(251, 191, 36, 0.35);
+    }
+
+    .best-banner {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin: 0 14px 0;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(6, 95, 70, 0.35);
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      color: #a7f3d0;
+      font-size: 13px;
+    }
+
+    .best-banner.show {
+      display: flex;
+    }
+
+    @media (max-width: 768px) {
+      .board {
+        grid-auto-flow: row;
+        grid-auto-columns: initial;
+        grid-template-columns: 1fr;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+
+      .hide-mobile {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen flex flex-col">
+    <!-- Top bar -->
+    <header class="glass sticky top-0 z-20 px-4 py-3">
+      <div class="max-w-[1800px] mx-auto flex flex-wrap items-center gap-3 justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-400 flex items-center justify-center font-bold text-slate-900">比</div>
+          <div>
+            <h1 class="text-base sm:text-lg font-bold text-white leading-tight">文章多版本对比评审</h1>
+            <p class="text-xs text-slate-400">一屏多看 · 粘贴对比 · 选出最佳</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button class="primary-btn" id="addPanelBtn">＋ 添加版本窗口</button>
+          <button class="ghost-btn" id="addSampleBtn">填充示例</button>
+          <button class="ghost-btn" id="exportBtn">导出评审</button>
+          <button class="ghost-btn danger-ish" id="clearAllBtn">清空全部</button>
+        </div>
+      </div>
+
+      <div class="max-w-[1800px] mx-auto mt-3 flex flex-wrap items-center gap-2 text-xs">
+        <label class="flex items-center gap-2 text-slate-300">
+          布局
+          <select id="layoutMode" class="toolbar-select">
+            <option value="columns">横向并排（适合一屏多看）</option>
+            <option value="rows">自适应网格</option>
+          </select>
+        </label>
+
+        <label class="flex items-center gap-2 text-slate-300">
+          面板宽度
+          <input id="panelWidth" class="toolbar-input" type="range" min="280" max="700" value="380" />
+          <span id="panelWidthLabel" class="text-slate-400 w-12">380px</span>
+        </label>
+
+        <label class="flex items-center gap-2 text-slate-300">
+          字号
+          <input id="fontSize" class="toolbar-input" type="range" min="12" max="22" value="14" />
+          <span id="fontSizeLabel" class="text-slate-400 w-10">14px</span>
+        </label>
+
+        <label class="flex items-center gap-2 text-slate-300">
+          行高
+          <input id="lineHeight" class="toolbar-input" type="range" min="140" max="240" value="175" />
+          <span id="lineHeightLabel" class="text-slate-400 w-12">1.75</span>
+        </label>
+
+        <label class="flex items-center gap-2 text-slate-300">
+          <input id="syncScroll" type="checkbox" checked class="accent-blue-500" />
+          同步滚动
+        </label>
+
+        <button class="icon-btn" id="compareDiffBtn" title="选择两个版本后对比差异">差异对比</button>
+        <button class="icon-btn" id="focusBestBtn" title="滚动到最佳版本">定位最佳</button>
+      </div>
+    </header>
+
+    <div id="bestBanner" class="best-banner mt-3">
+      <span>🏆 当前最佳：</span>
+      <strong id="bestBannerText">未选择</strong>
+      <span class="text-emerald-200/80">—— 可在任意窗口点击「选为最佳」</span>
+    </div>
+
+    <!-- Board -->
+    <main id="board" class="board flex-1"></main>
+
+    <!-- Summary dock -->
+    <section class="glass mx-3 mb-3 rounded-2xl p-3 sm:p-4">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold text-white mb-1">评审汇总</h2>
+          <p class="text-xs text-slate-400">给每篇文章打分、写评语，并选出最佳版本。数据会自动保存在浏览器本地。</p>
+        </div>
+        <div class="text-xs text-slate-400" id="statsText">0 个版本</div>
+      </div>
+      <div id="summaryList" class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Diff Modal -->
+  <div id="diffModal" class="fixed inset-0 z-40 hidden items-center justify-center p-4" style="background: rgba(2,6,23,0.72); backdrop-filter: blur(6px);">
+    <div class="glass w-full max-w-6xl max-h-[88vh] rounded-2xl overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-700/60">
+        <div>
+          <h3 class="font-semibold text-white">版本差异对比</h3>
+          <p id="diffSubtitle" class="text-xs text-slate-400 mt-0.5"></p>
+        </div>
+        <button class="icon-btn" id="closeDiffBtn">关闭</button>
+      </div>
+      <div class="grid md:grid-cols-2 gap-0 overflow-auto flex-1">
+        <div class="border-b md:border-b-0 md:border-r border-slate-700/50 p-4">
+          <div class="text-xs text-slate-400 mb-2" id="diffLeftTitle">版本 A</div>
+          <div id="diffLeft" class="text-sm leading-7 whitespace-pre-wrap break-words"></div>
+        </div>
+        <div class="p-4">
+          <div class="text-xs text-slate-400 mb-2" id="diffRightTitle">版本 B</div>
+          <div id="diffRight" class="text-sm leading-7 whitespace-pre-wrap break-words"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "article-compare-reviewer-v1";
+    const COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f472b6", "#a78bfa", "#22d3ee", "#fb7185", "#4ade80"];
+
+    const board = document.getElementById("board");
+    const summaryList = document.getElementById("summaryList");
+    const statsText = document.getElementById("statsText");
+    const bestBanner = document.getElementById("bestBanner");
+    const bestBannerText = document.getElementById("bestBannerText");
+    const toastEl = document.getElementById("toast");
+
+    let state = {
+      panels: [],
+      bestId: null,
+      compareIds: [],
+      layout: "columns",
+      panelWidth: 380,
+      fontSize: 14,
+      lineHeight: 1.75,
+      syncScroll: true,
+    };
+
+    let toastTimer = null;
+    let saveTimer = null;
+
+    function uid() {
+      return "p_" + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+    }
+
+    function toast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+    }
+
+    function countWords(text) {
+      const t = (text || "").trim();
+      if (!t) return { chars: 0, words: 0, lines: 0, paras: 0 };
+      const chars = t.replace(/\s/g, "").length;
+      const cn = (t.match(/[\u4e00-\u9fff]/g) || []).length;
+      const en = (t.match(/[A-Za-z0-9]+/g) || []).length;
+      const words = cn + en;
+      const lines = t.split(/\n/).length;
+      const paras = t.split(/\n\s*\n/).filter(Boolean).length || (t ? 1 : 0);
+      return { chars, words, lines, paras };
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function simpleMarkdown(text) {
+      let html = escapeHtml(text || "");
+      html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+      html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+      html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
+      html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+      html = html.replace(/`([^`]+)`/g, "<code style=\"background:rgba(148,163,184,.15);padding:1px 4px;border-radius:4px;\">$1</code>");
+      return html;
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        state.panels = data.panels || [];
+        state.bestId = data.bestId || null;
+        state.layout = data.layout || "columns";
+        state.panelWidth = data.panelWidth || 380;
+        state.fontSize = data.fontSize || 14;
+        state.lineHeight = data.lineHeight || 1.75;
+        state.syncScroll = data.syncScroll !== false;
+        return state.panels.length > 0;
+      } catch {
+        return false;
+      }
+    }
+
+    function scheduleSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveState, 200);
+    }
+
+    function saveState() {
+      const payload = {
+        panels: state.panels,
+        bestId: state.bestId,
+        layout: state.layout,
+        panelWidth: state.panelWidth,
+        fontSize: state.fontSize,
+        lineHeight: state.lineHeight,
+        syncScroll: state.syncScroll,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function addPanel(partial = {}) {
+      const index = state.panels.length + 1;
+      const panel = {
+        id: uid(),
+        title: partial.title || `版本 ${index}`,
+        content: partial.content || "",
+        note: partial.note || "",
+        score: partial.score ?? "",
+        mode: partial.mode || "edit", // edit | read
+        color: COLORS[(index - 1) % COLORS.length],
+        createdAt: Date.now(),
+      };
+      state.panels.push(panel);
+      scheduleSave();
+      render();
+      toast(`已添加「${panel.title}」`);
+      return panel;
+    }
+
+    function removePanel(id) {
+      state.panels = state.panels.filter((p) => p.id !== id);
+      if (state.bestId === id) state.bestId = null;
+      state.compareIds = state.compareIds.filter((x) => x !== id);
+      scheduleSave();
+      render();
+      toast("已删除窗口");
+    }
+
+    function updatePanel(id, patch) {
+      const p = state.panels.find((x) => x.id === id);
+      if (!p) return;
+      Object.assign(p, patch);
+      scheduleSave();
+      // lightweight local DOM updates for typing performance when possible
+    }
+
+    function setBest(id) {
+      state.bestId = state.bestId === id ? null : id;
+      scheduleSave();
+      render();
+      const p = state.panels.find((x) => x.id === state.bestId);
+      toast(p ? `已选最佳：${p.title}` : "已取消最佳标记");
+    }
+
+    function toggleCompare(id) {
+      const idx = state.compareIds.indexOf(id);
+      if (idx >= 0) {
+        state.compareIds.splice(idx, 1);
+      } else {
+        if (state.compareIds.length >= 2) {
+          state.compareIds.shift();
+        }
+        state.compareIds.push(id);
+      }
+      render();
+    }
+
+    function duplicatePanel(id) {
+      const src = state.panels.find((p) => p.id === id);
+      if (!src) return;
+      addPanel({
+        title: src.title + " 副本",
+        content: src.content,
+        note: src.note,
+        score: src.score,
+        mode: src.mode,
+      });
+    }
+
+    async function copyContent(id) {
+      const p = state.panels.find((x) => x.id === id);
+      if (!p) return;
+      try {
+        await navigator.clipboard.writeText(p.content || "");
+        toast("已复制全文");
+      } catch {
+        // fallback
+        const ta = document.createElement("textarea");
+        ta.value = p.content || "";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        toast("已复制全文");
+      }
+    }
+
+    async function pasteInto(id) {
+      try {
+        const text = await navigator.clipboard.readText();
+        updatePanel(id, { content: text });
+        render();
+        toast("已从剪贴板粘贴");
+      } catch {
+        toast("无法读取剪贴板，请直接在窗口内粘贴");
+        const ta = document.querySelector(`textarea[data-id="${id}"]`);
+        if (ta) {
+          ta.focus();
+          updatePanel(id, { mode: "edit" });
+          render();
+          requestAnimationFrame(() => {
+            const t2 = document.querySelector(`textarea[data-id="${id}"]`);
+            if (t2) t2.focus();
+          });
+        }
+      }
+    }
+
+    function applyReadingStyles() {
+      document.documentElement.style.setProperty("--panel-min", state.panelWidth + "px");
+      board.classList.toggle("rows", state.layout === "rows");
+      board.querySelectorAll(".editor, .preview").forEach((el) => {
+        el.style.fontSize = state.fontSize + "px";
+        el.style.lineHeight = String(state.lineHeight);
+      });
+    }
+
+    function bindSyncScroll() {
+      const areas = [...board.querySelectorAll("[data-scroll-area]")];
+      let locking = false;
+      areas.forEach((el) => {
+        el.onscroll = () => {
+          if (!state.syncScroll || locking) return;
+          locking = true;
+          const ratio = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight);
+          areas.forEach((other) => {
+            if (other === el) return;
+            const max = other.scrollHeight - other.clientHeight;
+            other.scrollTop = ratio * Math.max(0, max);
+          });
+          requestAnimationFrame(() => {
+            locking = false;
+          });
+        };
+      });
+    }
+
+    function renderSummary() {
+      const ranked = [...state.panels].sort((a, b) => {
+        const sa = parseFloat(a.score);
+        const sb = parseFloat(b.score);
+        const na = Number.isFinite(sa) ? sa : -Infinity;
+        const nb = Number.isFinite(sb) ? sb : -Infinity;
+        if (nb !== na) return nb - na;
+        return a.title.localeCompare(b.title, "zh");
+      });
+
+      statsText.textContent = `${state.panels.length} 个版本` + (state.bestId ? " · 已选最佳" : " · 未选最佳");
+
+      if (state.bestId) {
+        const best = state.panels.find((p) => p.id === state.bestId);
+        bestBanner.classList.add("show");
+        bestBannerText.textContent = best ? `${best.title}${best.score !== "" ? "（" + best.score + " 分）" : ""}` : "未选择";
+      } else {
+        bestBanner.classList.remove("show");
+      }
+
+      if (!ranked.length) {
+        summaryList.innerHTML = `<div class="text-xs text-slate-500">添加版本窗口并粘贴文章后，这里会显示评分总览。</div>`;
+        return;
+      }
+
+      summaryList.innerHTML = ranked
+        .map((p, i) => {
+          const c = countWords(p.content);
+          const isBest = p.id === state.bestId;
+          return `
+            <div class="rounded-xl p-3 border ${isBest ? "border-emerald-400/50 bg-emerald-500/10" : "border-slate-700/60 bg-slate-900/40"}">
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${p.color}"></span>
+                  <span class="font-medium text-sm text-slate-100 truncate">${escapeHtml(p.title)}</span>
+                  ${isBest ? '<span class="rank-badge">BEST</span>' : i === 0 && p.score !== "" ? '<span class="rank-badge">TOP</span>' : ""}
+                </div>
+                <span class="text-sm font-semibold ${isBest ? "text-emerald-300" : "text-slate-300"}">${p.score === "" ? "—" : p.score + "分"}</span>
+              </div>
+              <div class="text-[11px] text-slate-400 mb-1">${c.words} 字 · ${c.paras} 段 · ${c.lines} 行</div>
+              <div class="text-xs text-slate-400 line-clamp-2">${escapeHtml(p.note || "暂无评语")}</div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    function render() {
+      if (!state.panels.length) {
+        board.innerHTML = `
+          <div class="empty-hint">
+            <div class="text-4xl mb-2">📄</div>
+            <h2 class="text-lg text-slate-200 font-semibold">还没有文章版本</h2>
+            <p class="max-w-md text-sm">点击右上角「添加版本窗口」，把不同稿件粘贴进去，即可一屏并排阅读、打分、选出最佳。</p>
+            <button class="primary-btn mt-2" id="emptyAddBtn">＋ 添加第一个窗口</button>
+          </div>
+        `;
+        document.getElementById("emptyAddBtn")?.addEventListener("click", () => addPanel());
+        renderSummary();
+        applyReadingStyles();
+        return;
+      }
+
+      board.innerHTML = state.panels
+        .map((p) => {
+          const c = countWords(p.content);
+          const isBest = p.id === state.bestId;
+          const inCompare = state.compareIds.includes(p.id);
+          const isEdit = p.mode === "edit";
+          return `
+            <article class="panel ${isBest ? "best" : ""} ${inCompare ? "selected-compare" : ""}" data-panel-id="${p.id}">
+              <div class="panel-header">
+                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${p.color}"></span>
+                <input class="panel-title" data-action="title" data-id="${p.id}" value="${escapeHtml(p.title)}" />
+                ${isBest ? '<span class="rank-badge">最佳</span>' : ""}
+                <button class="icon-btn best-btn ${isBest ? "active" : ""}" data-action="best" data-id="${p.id}">选为最佳</button>
+                <button class="icon-btn ${inCompare ? "active" : ""}" data-action="compare" data-id="${p.id}">对比</button>
+                <button class="icon-btn" data-action="toggle-mode" data-id="${p.id}">${isEdit ? "阅读模式" : "编辑模式"}</button>
+                <button class="icon-btn" data-action="copy" data-id="${p.id}">复制</button>
+                <button class="icon-btn" data-action="paste" data-id="${p.id}">粘贴</button>
+                <button class="icon-btn" data-action="dup" data-id="${p.id}">复制窗口</button>
+                <button class="icon-btn danger" data-action="delete" data-id="${p.id}">删除</button>
+              </div>
+              <div class="panel-meta">
+                <span class="meta-chip">字数 ${c.words}</span>
+                <span class="meta-chip">字符 ${c.chars}</span>
+                <span class="meta-chip">段落 ${c.paras}</span>
+                <span class="meta-chip">行数 ${c.lines}</span>
+                <label class="meta-chip gap-1">评分
+                  <input class="score-input" data-action="score" data-id="${p.id}" type="number" min="0" max="100" step="0.5" value="${p.score}" placeholder="0-100" />
+                </label>
+              </div>
+              <div class="panel-body" style="min-height: 360px;">
+                ${
+                  isEdit
+                    ? `<textarea class="editor" data-scroll-area data-action="content" data-id="${p.id}" placeholder="在此粘贴或输入文章内容…\n\n支持多窗口并排，方便评审对比。">${escapeHtml(p.content)}</textarea>`
+                    : `<div class="preview" data-scroll-area data-id="${p.id}">${simpleMarkdown(p.content) || '<span style="color:#64748b">暂无内容，切换到编辑模式粘贴文章</span>'}</div>`
+                }
+                <textarea class="note-input" data-action="note" data-id="${p.id}" placeholder="评审备注 / 优缺点…">${escapeHtml(p.note)}</textarea>
+              </div>
+            </article>
+          `;
+        })
+        .join("");
+
+      applyReadingStyles();
+      bindSyncScroll();
+      renderSummary();
+    }
+
+    // Event delegation
+    board.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn || !btn.dataset.id) return;
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+
+      if (action === "best") setBest(id);
+      if (action === "compare") toggleCompare(id);
+      if (action === "copy") copyContent(id);
+      if (action === "paste") pasteInto(id);
+      if (action === "dup") duplicatePanel(id);
+      if (action === "delete") {
+        if (confirm("确定删除这个版本窗口？")) removePanel(id);
+      }
+      if (action === "toggle-mode") {
+        const p = state.panels.find((x) => x.id === id);
+        if (!p) return;
+        // save current textarea before switch
+        const ta = board.querySelector(`textarea[data-action="content"][data-id="${id}"]`);
+        if (ta) p.content = ta.value;
+        p.mode = p.mode === "edit" ? "read" : "edit";
+        scheduleSave();
+        render();
+      }
+    });
+
+    board.addEventListener("input", (e) => {
+      const el = e.target;
+      const id = el.dataset.id;
+      const action = el.dataset.action;
+      if (!id || !action) return;
+      const p = state.panels.find((x) => x.id === id);
+      if (!p) return;
+
+      if (action === "title") {
+        p.title = el.value;
+        scheduleSave();
+        renderSummary();
+      } else if (action === "content") {
+        p.content = el.value;
+        scheduleSave();
+        // update meta chips live
+        const card = el.closest(".panel");
+        const c = countWords(p.content);
+        const chips = card.querySelectorAll(".meta-chip");
+        if (chips[0]) chips[0].textContent = `字数 ${c.words}`;
+        if (chips[1]) chips[1].textContent = `字符 ${c.chars}`;
+        if (chips[2]) chips[2].textContent = `段落 ${c.paras}`;
+        if (chips[3]) chips[3].textContent = `行数 ${c.lines}`;
+        renderSummary();
+      } else if (action === "note") {
+        p.note = el.value;
+        scheduleSave();
+        renderSummary();
+      } else if (action === "score") {
+        p.score = el.value;
+        scheduleSave();
+        renderSummary();
+      }
+    });
+
+    // Diff logic (word-ish / line based LCS on tokens)
+    function tokenize(text) {
+      return (text || "").split(/(\s+)/).filter((t) => t.length);
+    }
+
+    function diffTokens(aTokens, bTokens) {
+      const n = aTokens.length;
+      const m = bTokens.length;
+      // For long texts, fall back to line diff to keep UI responsive
+      if (n * m > 400000) {
+        return null;
+      }
+      const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+      for (let i = n - 1; i >= 0; i--) {
+        for (let j = m - 1; j >= 0; j--) {
+          if (aTokens[i] === bTokens[j]) dp[i][j] = dp[i + 1][j + 1] + 1;
+          else dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+        }
+      }
+      const left = [];
+      const right = [];
+      let i = 0,
+        j = 0;
+      while (i < n && j < m) {
+        if (aTokens[i] === bTokens[j]) {
+          left.push({ t: aTokens[i], type: "same" });
+          right.push({ t: bTokens[j], type: "same" });
+          i++;
+          j++;
+        } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+          left.push({ t: aTokens[i], type: "removed" });
+          i++;
+        } else {
+          right.push({ t: bTokens[j], type: "added" });
+          j++;
+        }
+      }
+      while (i < n) left.push({ t: aTokens[i++], type: "removed" });
+      while (j < m) right.push({ t: bTokens[j++], type: "added" });
+      return { left, right };
+    }
+
+    function renderDiffSide(tokens) {
+      return tokens
+        .map((x) => {
+          const safe = escapeHtml(x.t);
+          if (x.type === "added") return `<span class="diff-added">${safe}</span>`;
+          if (x.type === "removed") return `<span class="diff-removed">${safe}</span>`;
+          return safe;
+        })
+        .join("");
+    }
+
+    function lineDiff(a, b) {
+      const aLines = (a || "").split("\n");
+      const bLines = (b || "").split("\n");
+      const res = diffTokens(aLines, bLines);
+      if (!res) {
+        return {
+          left: escapeHtml(a || ""),
+          right: escapeHtml(b || ""),
+        };
+      }
+      // re-join lines with newlines
+      const mapSide = (arr, kind) =>
+        arr
+          .map((x) => {
+            const safe = escapeHtml(x.t);
+            if (x.type === "added") return `<div class="diff-added">${safe || " "}</div>`;
+            if (x.type === "removed") return `<div class="diff-removed">${safe || " "}</div>`;
+            return `<div>${safe || " "}</div>`;
+          })
+          .join("");
+      return { left: mapSide(res.left), right: mapSide(res.right) };
+    }
+
+    function openDiff() {
+      if (state.compareIds.length < 2) {
+        toast("请先在两个窗口点击「对比」");
+        return;
+      }
+      const [idA, idB] = state.compareIds;
+      const a = state.panels.find((p) => p.id === idA);
+      const b = state.panels.find((p) => p.id === idB);
+      if (!a || !b) {
+        toast("对比版本不存在");
+        return;
+      }
+
+      document.getElementById("diffSubtitle").textContent = `绿色=新增，红色=删除（相对左侧）`;
+      document.getElementById("diffLeftTitle").textContent = a.title;
+      document.getElementById("diffRightTitle").textContent = b.title;
+
+      const aTok = tokenize(a.content);
+      const bTok = tokenize(b.content);
+      let leftHtml, rightHtml;
+      const tokenDiff = diffTokens(aTok, bTok);
+      if (tokenDiff) {
+        leftHtml = renderDiffSide(tokenDiff.left);
+        rightHtml = renderDiffSide(tokenDiff.right);
+      } else {
+        const ld = lineDiff(a.content, b.content);
+        leftHtml = ld.left;
+        rightHtml = ld.right;
+      }
+
+      document.getElementById("diffLeft").innerHTML = leftHtml || '<span class="text-slate-500">空</span>';
+      document.getElementById("diffRight").innerHTML = rightHtml || '<span class="text-slate-500">空</span>';
+
+      const modal = document.getElementById("diffModal");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+
+    function closeDiff() {
+      const modal = document.getElementById("diffModal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function exportReview() {
+      const lines = [];
+      lines.push("# 文章多版本评审报告");
+      lines.push("");
+      lines.push(`导出时间：${new Date().toLocaleString()}`);
+      lines.push(`版本数量：${state.panels.length}`);
+      const best = state.panels.find((p) => p.id === state.bestId);
+      lines.push(`最佳版本：${best ? best.title : "未选择"}`);
+      lines.push("");
+      const ranked = [...state.panels].sort((a, b) => {
+        const sa = parseFloat(a.score);
+        const sb = parseFloat(b.score);
+        return (Number.isFinite(sb) ? sb : -1) - (Number.isFinite(sa) ? sa : -1);
+      });
+      ranked.forEach((p, i) => {
+        const c = countWords(p.content);
+        lines.push(`## ${i + 1}. ${p.title}${p.id === state.bestId ? " 【最佳】" : ""}`);
+        lines.push(`- 评分：${p.score === "" ? "未评" : p.score}`);
+        lines.push(`- 字数：${c.words}；段落：${c.paras}；行数：${c.lines}`);
+        lines.push(`- 评语：${p.note || "无"}`);
+        lines.push("");
+        lines.push("### 正文");
+        lines.push(p.content || "（空）");
+        lines.push("\n---\n");
+      });
+
+      const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `文章评审报告-${new Date().toISOString().slice(0, 10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("已导出 Markdown 报告");
+    }
+
+    function loadSamples() {
+      state.panels = [];
+      state.bestId = null;
+      state.compareIds = [];
+      addPanel({
+        title: "版本 A · 正式稿",
+        mode: "read",
+        score: 88,
+        note: "结构完整，语气稳重，适合对外发布。个别句子偏长。",
+        content: `# 春天的城市更新计划\n\n随着气温回升，本市启动新一轮城市更新行动。本次计划聚焦老旧小区改造、公共空间提升与绿色出行三条主线。\n\n## 改造重点\n\n第一，对建成超过20年的居民小区进行外立面修缮与无障碍设施补齐。第二，在社区周边增设口袋公园，让居民步行五分钟即可到达一处休憩空间。第三，优化公交接驳，鼓励骑行与步行。\n\n## 预期效果\n\n相关部门表示，项目将分两期推进，优先解决群众反映集中的停车难、绿化少、照明不足等问题。预计完成后，相关区域的宜居指数将明显提升。\n\n市民可通过热线与线上平台提交建议，共同参与这座城市的温暖改变。`,
+      });
+      // fix index colors by re-adding properly
+      state.panels = [];
+      const samples = [
+        {
+          title: "版本 A · 正式稿",
+          mode: "read",
+          score: 88,
+          note: "结构完整，语气稳重，适合对外发布。个别句子偏长。",
+          content: `# 春天的城市更新计划\n\n随着气温回升，本市启动新一轮城市更新行动。本次计划聚焦老旧小区改造、公共空间提升与绿色出行三条主线。\n\n## 改造重点\n\n第一，对建成超过20年的居民小区进行外立面修缮与无障碍设施补齐。第二，在社区周边增设口袋公园，让居民步行五分钟即可到达一处休憩空间。第三，优化公交接驳，鼓励骑行与步行。\n\n## 预期效果\n\n相关部门表示，项目将分两期推进，优先解决群众反映集中的停车难、绿化少、照明不足等问题。预计完成后，相关区域的宜居指数将明显提升。\n\n市民可通过热线与线上平台提交建议，共同参与这座城市的温暖改变。`,
+        },
+        {
+          title: "版本 B · 活泼稿",
+          mode: "read",
+          score: 84,
+          note: "更有感染力，适合新媒体；专业性稍弱。",
+          content: `# 这座城，正在被春天轻轻改写\n\n暖气还没完全撤走，脚手架却先到了。新一轮城市更新，像一场按时赴约的春风，先吹老旧小区，再吹街角的小公园，最后吹到我们每天走过的那条路。\n\n## 这次改什么？\n\n- 老小区：墙面焕新、坡道补齐，电梯与照明不再“将就”。\n- 小公园：把边角地变成可坐可聊的口袋绿洲，步行五分钟就能遇见一抹绿色。\n- 出行：公交接驳更顺，骑行道更连，让“少开车”变成轻松选项。\n\n## 你可能会先看见这些变化\n\n夜里路灯更亮一点，楼下多了能歇脚的长椅，孩子有了更安全的活动角。大工程不一定轰轰烈烈，但生活会一点点变顺手。\n\n有想法？打电话，或者上网提一条。城市更新不是“他们的项目”，是我们一起把日常过得更舒服。`,
+        },
+        {
+          title: "版本 C · 简洁稿",
+          mode: "read",
+          score: 91,
+          note: "信息密度高、易扫读，评审倾向作为主推版本。",
+          content: `# 城市更新计划（简明版）\n\n本市启动春季城市更新，围绕三项任务推进：\n\n1. **老旧小区改造**：外立面修缮、补齐无障碍设施，改善照明与停车。\n2. **公共空间提升**：新建/改造口袋公园，实现主要社区步行约5分钟可达。\n3. **绿色出行优化**：加强公交接驳，完善步行与骑行条件。\n\n项目分两期实施，优先处理居民高频诉求。完成后将提升片区宜居水平。\n\n欢迎通过热线与线上平台反馈意见。`,
+        },
+      ];
+      samples.forEach((s) => {
+        const panel = {
+          id: uid(),
+          title: s.title,
+          content: s.content,
+          note: s.note,
+          score: s.score,
+          mode: s.mode,
+          color: COLORS[state.panels.length % COLORS.length],
+          createdAt: Date.now(),
+        };
+        state.panels.push(panel);
+      });
+      state.bestId = state.panels[2].id;
+      scheduleSave();
+      render();
+      toast("已填充 3 个示例版本");
+    }
+
+    // Toolbar bindings
+    document.getElementById("addPanelBtn").addEventListener("click", () => addPanel());
+    document.getElementById("addSampleBtn").addEventListener("click", loadSamples);
+    document.getElementById("exportBtn").addEventListener("click", exportReview);
+    document.getElementById("clearAllBtn").addEventListener("click", () => {
+      if (!state.panels.length) return toast("没有可清空的窗口");
+      if (confirm("确定清空全部版本？此操作不可撤销（本地缓存也会清除）。")) {
+        state.panels = [];
+        state.bestId = null;
+        state.compareIds = [];
+        scheduleSave();
+        render();
+        toast("已清空");
+      }
+    });
+
+    document.getElementById("layoutMode").addEventListener("change", (e) => {
+      state.layout = e.target.value;
+      scheduleSave();
+      applyReadingStyles();
+    });
+
+    document.getElementById("panelWidth").addEventListener("input", (e) => {
+      state.panelWidth = Number(e.target.value);
+      document.getElementById("panelWidthLabel").textContent = state.panelWidth + "px";
+      scheduleSave();
+      applyReadingStyles();
+    });
+
+    document.getElementById("fontSize").addEventListener("input", (e) => {
+      state.fontSize = Number(e.target.value);
+      document.getElementById("fontSizeLabel").textContent = state.fontSize + "px";
+      scheduleSave();
+      applyReadingStyles();
+    });
+
+    document.getElementById("lineHeight").addEventListener("input", (e) => {
+      state.lineHeight = Number(e.target.value) / 100;
+      document.getElementById("lineHeightLabel").textContent = state.lineHeight.toFixed(2);
+      scheduleSave();
+      applyReadingStyles();
+    });
+
+    document.getElementById("syncScroll").addEventListener("change", (e) => {
+      state.syncScroll = e.target.checked;
+      scheduleSave();
+    });
+
+    document.getElementById("compareDiffBtn").addEventListener("click", openDiff);
+    document.getElementById("closeDiffBtn").addEventListener("click", closeDiff);
+    document.getElementById("diffModal").addEventListener("click", (e) => {
+      if (e.target.id === "diffModal") closeDiff();
+    });
+    document.getElementById("focusBestBtn").addEventListener("click", () => {
+      if (!state.bestId) return toast("尚未选择最佳版本");
+      const el = board.querySelector(`[data-panel-id="${state.bestId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        toast("已定位到最佳版本");
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDiff();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        addPanel();
+      }
+    });
+
+    // init
+    function syncToolbar() {
+      document.getElementById("layoutMode").value = state.layout;
+      document.getElementById("panelWidth").value = state.panelWidth;
+      document.getElementById("panelWidthLabel").textContent = state.panelWidth + "px";
+      document.getElementById("fontSize").value = state.fontSize;
+      document.getElementById("fontSizeLabel").textContent = state.fontSize + "px";
+      document.getElementById("lineHeight").value = Math.round(state.lineHeight * 100);
+      document.getElementById("lineHeightLabel").textContent = Number(state.lineHeight).toFixed(2);
+      document.getElementById("syncScroll").checked = state.syncScroll;
+    }
+
+    if (!loadState()) {
+      // start with two empty panels for quick compare
+      addPanel({ title: "版本 1", mode: "edit" });
+      addPanel({ title: "版本 2", mode: "edit" });
+    } else {
+      render();
+    }
+    syncToolbar();
+    applyReadingStyles();
+  </script>
+</body>
+</html>
