@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>易辞 · 专业文章文字替换工作台</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Noto+Sans+SC:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #f3eee4;
+      --paper-2: #ebe4d6;
+      --cream: #faf7f0;
+      --ink: #1c1610;
+      --ink-soft: #3d3429;
+      --muted: #7a7064;
+      --line: #ddd4c4;
+      --accent: #b44a1f;
+      --accent-2: #8c3514;
+      --gold: #b0893e;
+      --del: #c4312a;
+      --del-bg: #fde4e1;
+      --ins: #1d7a4a;
+      --ins-bg: #d9f3e4;
+      --ctx: #9a6b12;
+      --ctx-bg: #f8e8c0;
+      --shadow: 0 18px 50px rgba(60, 40, 20, 0.08);
+      --header-img: url("https://images.pexels.com/photos/4087567/pexels-photo-4087567.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200");
+    }
+    .dark {
+      --paper: #161310;
+      --paper-2: #1e1914;
+      --cream: #221c16;
+      --ink: #f4eee4;
+      --ink-soft: #d9cfc0;
+      --muted: #a39686;
+      --line: #3a3228;
+      --accent: #e07242;
+      --accent-2: #f0a07a;
+      --gold: #d4b06a;
+      --del: #ff8b82;
+      --del-bg: #4a1f1c;
+      --ins: #6ee7a8;
+      --ins-bg: #163526;
+      --ctx: #f0c56e;
+      --ctx-bg: #3d2e12;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Noto Sans SC", sans-serif;
+      overflow: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .045;
+      background-image: radial-gradient(var(--ink) .6px, transparent .6px);
+      background-size: 7px 7px;
+      z-index: 0;
+    }
+    .serif { font-family: "Cormorant Garamond", "Noto Serif SC", serif; }
+    .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+    .preview-font { font-family: "Noto Serif SC", "Noto Sans SC", serif; }
+    ::selection { background: #e8c4b0; color: #1c1610; }
+    .dark ::selection { background: #8c3514; color: #fff; }
+
+    textarea, input, select, button { font-family: inherit; }
+    button { cursor: pointer; }
+    .scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+    .scroll::-webkit-scrollbar-thumb { background: #c9bba6; border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
+    .dark .scroll::-webkit-scrollbar-thumb { background: #5a4d3d; border: 2px solid transparent; background-clip: padding-box; }
+    .scroll::-webkit-scrollbar-track { background: transparent; }
+
+    .panel {
+      background: var(--cream);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .rule-card {
+      background: color-mix(in srgb, var(--cream) 70%, white);
+      border: 1px solid var(--line);
+      transition: border-color .2s, box-shadow .2s, transform .2s;
+    }
+    .dark .rule-card { background: #1a1612; }
+    .rule-card:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+    .rule-card.active { box-shadow: 0 0 0 1px var(--accent); }
+    .rule-card.disabled { opacity: .55; }
+
+    .mark-del {
+      background: var(--del-bg);
+      color: var(--del);
+      text-decoration: line-through;
+      text-decoration-thickness: 1.5px;
+      border-radius: 3px;
+      padding: 0 2px;
+      margin: 0 1px;
+    }
+    .mark-ins {
+      background: var(--ins-bg);
+      color: var(--ins);
+      border-radius: 3px;
+      padding: 0 2px;
+      margin: 0 1px;
+      font-weight: 600;
+    }
+    .mark-ctx {
+      box-shadow: inset 0 -2px 0 var(--ctx);
+    }
+    .mark-hit {
+      background: var(--ctx-bg);
+      color: var(--ctx);
+      border-radius: 3px;
+      padding: 0 2px;
+    }
+    .mark-find {
+      background: #ffe08a;
+      color: #5a4208;
+      border-radius: 3px;
+      padding: 0 1px;
+    }
+    .dark .mark-find { background: #7a5a12; color: #ffe08a; }
+    .mark-find.on {
+      outline: 2px solid var(--accent);
+      background: #ffcf55;
+    }
+
+    .toggle {
+      width: 36px; height: 20px; border-radius: 99px;
+      background: #cfc4b3; position: relative; border: 0; padding: 0;
+      transition: background .2s;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle i {
+      position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+      background: #fff; border-radius: 50%; transition: transform .2s;
+    }
+    .toggle.on i { transform: translateX(16px); }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid var(--line); background: var(--paper);
+      border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--ink-soft);
+    }
+    .btn {
+      border: 1px solid var(--line); background: var(--cream); color: var(--ink);
+      border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 500;
+      transition: .15s ease;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn-primary:hover { background: var(--accent-2); color: #fff; }
+    .btn-ghost { background: transparent; }
+    .field {
+      width: 100%; border: 1px solid var(--line); background: var(--paper);
+      color: var(--ink); border-radius: 10px; padding: 8px 10px; outline: none;
+      font-size: 13px;
+    }
+    .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+    .num {
+      width: 64px; text-align: center; font-variant-numeric: tabular-nums;
+    }
+    .seg {
+      display: flex; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    }
+    .seg button {
+      flex: 1; border: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 7px 8px; font-weight: 500;
+    }
+    .seg button.on { background: var(--ink); color: var(--paper); }
+    .header-seal {
+      width: 36px; height: 36px; border: 2px solid var(--accent); color: var(--accent);
+      display: grid; place-items: center; font-family: "Noto Serif SC", serif; font-weight: 700; font-size: 16px;
+      transform: rotate(-8deg); background: color-mix(in srgb, var(--accent) 8%, transparent);
+    }
+    .drop-hover { outline: 2px dashed var(--accent); outline-offset: -6px; background: color-mix(in srgb, var(--accent) 6%, var(--cream)); }
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px;
+      font-size: 13px; opacity: 0; pointer-events: none; transition: .25s ease; z-index: 80;
+      box-shadow: 0 10px 30px rgba(0,0,0,.2);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(28,22,16,.45); z-index: 70;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-bg.show { display: flex; }
+    .stat { font-variant-numeric: tabular-nums; }
+    .splitter {
+      width: 8px; cursor: col-resize; position: relative; flex: none;
+    }
+    .splitter::after {
+      content: ""; position: absolute; top: 20%; bottom: 20%; left: 3px; width: 2px;
+      background: var(--line); border-radius: 2px;
+    }
+    #hSplitter {
+      background: linear-gradient(var(--line), var(--line)) center / 48px 1px no-repeat;
+    }
+    #hSplitter:hover { background-color: color-mix(in srgb, var(--accent) 16%, transparent); }
+    #source { resize: none; }
+    .preview-body { white-space: pre-wrap; word-break: break-word; line-height: 1.9; }
+    .preview-body.nowrap { white-space: pre; }
+    .rule-color { width: 8px; border-radius: 8px 0 0 8px; }
+    .kbd {
+      font-family: "JetBrains Mono", monospace; font-size: 11px;
+      border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+      padding: 1px 6px; background: var(--paper); color: var(--ink-soft);
+    }
+    .legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; vertical-align: middle; }
+    details summary { list-style: none; cursor: pointer; }
+    details summary::-webkit-details-marker { display: none; }
+    .empty-illu {
+      width: 72px; height: 72px; border: 1.5px dashed var(--line); border-radius: 50%;
+      display: grid; place-items: center; margin: 0 auto 12px; color: var(--muted);
+    }
+    @media (max-width: 980px) {
+      body { overflow: auto; }
+      #appShell { flex-direction: column; height: auto !important; }
+      .splitter { display: none; }
+      #leftCol, #rightCol { width: 100% !important; min-height: 70vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="relative z-10 flex flex-col h-full">
+    <header class="flex items-center justify-between gap-4 px-5 py-3 border-b relative" style="border-color: var(--line); background: color-mix(in srgb, var(--cream) 88%, transparent); backdrop-filter: blur(10px);">
+      <div class="absolute left-0 right-0 bottom-0 h-[2px]" style="background: linear-gradient(90deg, transparent, var(--accent), var(--gold), transparent); opacity: .7;"></div>
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="header-seal">易</div>
+        <div class="min-w-0">
+          <div class="flex items-baseline gap-2">
+            <h1 class="serif text-2xl leading-none tracking-wide">易辞</h1>
+            <span class="text-[11px] tracking-[.28em] uppercase" style="color: var(--muted)">YICI STUDIO</span>
+          </div>
+          <p class="text-xs truncate" style="color: var(--muted)">专业文章文字替换工作台 · 多规则 · 上下文 · 修订对照</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap justify-end">
+        <button class="btn btn-ghost" onclick="loadSample()">载入示例</button>
+        <button class="btn btn-ghost" onclick="exportProject()">保存工作区</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('projIn').click()">打开工作区</button>
+        <input id="projIn" type="file" accept=".json" class="hidden" />
+        <button class="btn btn-ghost" onclick="openModal('shortcutsModal')">快捷键</button>
+        <button class="btn" onclick="toggleTheme()" id="themeBtn">夜间</button>
+        <button class="btn" onclick="undo()" title="撤销">撤销</button>
+        <button class="btn" onclick="redo()" title="重做">重做</button>
+        <button class="btn btn-primary" onclick="copyResult()">复制结果</button>
+      </div>
+    </header>
+
+    <div id="appShell" class="flex flex-1 min-h-0">
+      <section id="leftCol" class="flex flex-col min-w-0" style="width: 46%;">
+        <div class="flex items-center justify-between px-4 py-2 border-b" style="border-color: var(--line);">
+          <div class="flex items-center gap-2">
+            <span class="serif text-lg">原文</span>
+            <span class="chip stat" id="sourceStats">0 字</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button class="btn btn-ghost" onclick="document.getElementById('fileIn').click()">导入文件</button>
+            <input id="fileIn" type="file" accept=".txt,.md,.csv,.json,.html,.xml,.log,.text,text/*" class="hidden" />
+            <button class="btn btn-ghost" onclick="pasteSource()">粘贴</button>
+            <button class="btn btn-ghost" onclick="clearSource()">清空</button>
+          </div>
+        </div>
+        <div class="relative flex-none" id="sourcePane" style="height: 42%;">
+          <textarea id="source" class="w-full h-full px-4 py-3 outline-none scroll preview-font text-[15px] leading-8" placeholder="在此粘贴或输入需要处理的文章……也支持拖入 .txt / .md 文件。选中一段文字可快速加入规则。" style="background: transparent; color: var(--ink); border: 0;"></textarea>
+          <div id="selTip" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
+            <button class="btn btn-primary shadow-lg" id="selTipBtn">将选中文字加入规则</button>
+          </div>
+        </div>
+        <div id="hSplitter" class="h-2 cursor-row-resize shrink-0" title="拖动调整原文高度"></div>
+
+        <div class="flex items-center justify-between px-4 py-2 border-y" style="border-color: var(--line);">
+          <div class="flex items-center gap-2">
+            <span class="serif text-lg">替换规则</span>
+            <span class="chip" id="ruleCount">0 条</span>
+          </div>
+          <div class="flex items-center gap-1.5 flex-wrap justify-end">
+            <button class="btn btn-ghost" onclick="setAllRules(true)">全开</button>
+            <button class="btn btn-ghost" onclick="setAllRules(false)">全关</button>
+            <button class="btn btn-ghost" onclick="clearRules()">清空规则</button>
+            <button class="btn btn-ghost" onclick="openModal('tplModal')">模板库</button>
+            <button class="btn btn-ghost" onclick="exportRules()">导出规则</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('ruleIn').click()">导入规则</button>
+            <input id="ruleIn" type="file" accept=".json" class="hidden" />
+            <button class="btn btn-primary" onclick="addRule()">＋ 添加规则</button>
+          </div>
+        </div>
+        <div id="rulesWrap" class="flex-1 overflow-auto scroll px-3 py-3 space-y-2.5"></div>
+      </section>
+
+      <div class="splitter" id="splitter"></div>
+
+      <section id="rightCol" class="flex flex-col min-w-0 flex-1 panel m-3 ml-0 rounded-2xl overflow-hidden">
+        <div class="flex items-center justify-between gap-3 px-4 py-2.5 border-b flex-wrap" style="border-color: var(--line);">
+          <div class="flex items-center gap-3">
+            <span class="serif text-lg">预览</span>
+            <div class="seg" id="viewSeg">
+              <button class="on" data-view="diff">修订对照</button>
+              <button data-view="result">纯结果</button>
+              <button data-view="origin">原文标注</button>
+              <button data-view="log">变更清单</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <input id="previewFind" class="field" style="width:148px;padding:6px 10px" placeholder="预览内查找" />
+            <button class="btn btn-ghost" onclick="jumpHit(-1)">上一个</button>
+            <button class="btn btn-ghost" onclick="jumpHit(1)">下一个</button>
+            <button class="btn btn-ghost" onclick="changeFont(-1)">A−</button>
+            <button class="btn btn-ghost" onclick="changeFont(1)">A＋</button>
+            <button class="btn btn-ghost" id="wrapBtn" onclick="toggleWrap()">换行</button>
+            <button class="btn" onclick="downloadResult()">下载结果</button>
+          </div>
+        </div>
+
+        <div class="px-4 py-2 flex items-center justify-between gap-3 border-b flex-wrap" style="border-color: var(--line); background: var(--paper);">
+          <div class="legend flex items-center gap-3 text-xs" style="color: var(--muted);">
+            <span><i class="mark-del" style="width:auto;padding:0 6px;text-decoration:line-through;">删</i> 删除</span>
+            <span><i class="mark-ins" style="width:auto;padding:0 6px;">增</i> 替换新增</span>
+            <span><i class="mark-hit" style="width:auto;padding:0 6px;">词</i> 命中关键词</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs stat" style="color: var(--muted);" id="diffStats">尚未替换</div>
+        </div>
+
+        <div id="preview" class="flex-1 overflow-auto scroll px-6 py-5 preview-body preview-font text-[16px]"></div>
+
+        <div class="border-t px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap" style="border-color: var(--line); background: var(--paper);">
+          <div class="flex items-center gap-2 overflow-auto scroll" id="changeChips"></div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button class="btn btn-ghost" onclick="copyResult()">复制</button>
+            <button class="btn btn-primary" onclick="applyToSource()">将结果写回原文</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-bg" id="tplModal">
+    <div class="panel rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color: var(--line);">
+        <div>
+          <h3 class="serif text-2xl">规则模板库</h3>
+          <p class="text-xs mt-1" style="color: var(--muted)">一键加入常用清洗与替换规则，加入后仍可继续编辑</p>
+        </div>
+        <button class="btn" onclick="closeModal('tplModal')">关闭</button>
+      </div>
+      <div class="p-4 overflow-auto scroll grid sm:grid-cols-2 gap-3" id="tplList"></div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="shortcutsModal">
+    <div class="panel rounded-2xl w-full max-w-md overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color: var(--line);">
+        <h3 class="serif text-2xl">快捷键</h3>
+        <button class="btn" onclick="closeModal('shortcutsModal')">关闭</button>
+      </div>
+      <div class="px-5 py-4 space-y-2.5 text-sm">
+        <div class="flex justify-between"><span>添加规则</span><span class="kbd">Ctrl / ⌘ + D</span></div>
+        <div class="flex justify-between"><span>复制结果</span><span class="kbd">Ctrl / ⌘ + Shift + C</span></div>
+        <div class="flex justify-between"><span>撤销 / 重做</span><span><span class="kbd">Ctrl + Z</span> <span class="kbd">Ctrl + Y</span></span></div>
+        <div class="flex justify-between"><span>导入文件</span><span class="kbd">Ctrl / ⌘ + O</span></div>
+        <div class="flex justify-between"><span>下载结果</span><span class="kbd">Ctrl / ⌘ + S</span></div>
+        <div class="flex justify-between"><span>切换主题</span><span class="kbd">Ctrl / ⌘ + Shift + L</span></div>
+        <div class="flex justify-between"><span>预览内查找下一个</span><span class="kbd">Enter</span></div>
+        <div class="flex justify-between"><span>预览内查找上一个</span><span class="kbd">Shift + Enter</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const COLORS = ["#b44a1f", "#1d7a4a", "#2b5f8a", "#8a3d7a", "#9a6b12", "#3d6b5a", "#a33b3b", "#4a4e8a"];
+    const LS = { theme: "yici-theme", data: "yici-data" };
+    const state = {
+      rules: [],
+      view: "diff",
+      wrap: true,
+      font: 16,
+      history: [],
+      future: [],
+      busy: false,
+      _hits: [],
+      _hitIdx: -1
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const uid = () => Math.random().toString(36).slice(2, 9);
+    const escapeHtml = (s) => String(s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const escapeReg = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    function toast(msg) {
+      const el = $("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove("show"), 2200);
+    }
+
+    function defaultRule(partial = {}) {
+      return {
+        id: uid(),
+        enabled: true,
+        find: "",
+        replace: "",
+        action: "replace",
+        mode: "exact",
+        caseSensitive: false,
+        multiline: false,
+        before: 0,
+        after: 0,
+        occType: "all",
+        occN: 1,
+        color: COLORS[state.rules.length % COLORS.length],
+        open: true,
+        ...partial
+      };
+    }
+
+    function setAllRules(on) {
+      pushHistory();
+      state.rules.forEach((r) => r.enabled = on);
+      renderRules(); persist(); run();
+      toast(on ? "已启用全部规则" : "已停用全部规则");
+    }
+    function clearRules() {
+      if (!state.rules.length) return toast("没有规则可清空");
+      pushHistory();
+      state.rules = [];
+      renderRules(); persist(); run();
+      toast("规则已清空");
+    }
+
+    function addRule(partial) {
+      pushHistory();
+      const rule = defaultRule(partial);
+      state.rules.push(rule);
+      renderRules();
+      persist();
+      run();
+      const last = document.querySelector(`[data-rule="${rule.id}"] input[data-k="find"]`);
+      if (last) last.focus();
+    }
+
+    function removeRule(id) {
+      pushHistory();
+      state.rules = state.rules.filter((r) => r.id !== id);
+      renderRules(); persist(); run();
+    }
+
+    function swapRule(id) {
+      const r = state.rules.find((x) => x.id === id);
+      if (!r) return;
+      pushHistory();
+      const a = r.find; r.find = r.replace; r.replace = a;
+      r.action = "replace";
+      renderRules(); persist(); run();
+      toast("已交换查找与替换");
+    }
+
+    function duplicateRule(id) {
+      const r = state.rules.find((x) => x.id === id);
+      if (!r) return;
+      pushHistory();
+      const copy = { ...r, id: uid(), color: COLORS[state.rules.length % COLORS.length] };
+      const i = state.rules.findIndex((x) => x.id === id);
+      state.rules.splice(i + 1, 0, copy);
+      renderRules(); persist(); run();
+    }
+
+    function moveRule(id, dir) {
+      const i = state.rules.findIndex((x) => x.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= state.rules.length) return;
+      pushHistory();
+      const [r] = state.rules.splice(i, 1);
+      state.rules.splice(j, 0, r);
+      renderRules(); persist(); run();
+    }
+
+    function updateRule(id, key, value) {
+      const r = state.rules.find((x) => x.id === id);
+      if (!r) return;
+      r[key] = value;
+      persist();
+      renderRulesLight(id);
+      run();
+    }
+
+    function renderRules() {
+      const wrap = $("rulesWrap");
+      $("ruleCount").textContent = state.rules.length + " 条";
+      if (!state.rules.length) {
+        wrap.innerHTML = `
+          <div class="h-full min-h-[220px] grid place-items-center text-center px-6">
+            <div>
+              <div class="empty-illu">詞</div>
+              <p class="serif text-xl mb-1">还没有替换规则</p>
+              <p class="text-sm mb-4" style="color:var(--muted)">添加多个关键词，分别设置替换或删除，也可指定关键词前后若干字符一并处理。</p>
+              <button class="btn btn-primary" onclick="addRule()">添加第一条规则</button>
+            </div>
+          </div>`;
+        return;
+      }
+      wrap.innerHTML = state.rules.map((r, idx) => ruleHtml(r, idx)).join("");
+      bindRuleEvents();
+    }
+
+    function renderRulesLight(id) {
+      $("ruleCount").textContent = state.rules.length + " 条";
+      const r = state.rules.find((x) => x.id === id);
+      const card = document.querySelector(`[data-rule="${id}"]`);
+      if (!r || !card) return;
+      card.classList.toggle("disabled", !r.enabled);
+      const badge = card.querySelector("[data-match-badge]");
+      if (badge && r._matchInfo) badge.textContent = r._matchInfo;
+    }
+
+    function ruleHtml(r, idx) {
+      return `
+      <article class="rule-card rounded-xl overflow-hidden flex ${r.enabled ? "" : "disabled"}" data-rule="${r.id}" draggable="true">
+        <div class="rule-color" style="background:${r.color}"></div>
+        <div class="flex-1 min-w-0 p-3">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs tracking-wide" style="color:var(--muted)">规则 ${idx + 1}</span>
+            <span class="chip" data-match-badge>${r._matchInfo || "未匹配"}</span>
+            <div class="ml-auto flex items-center gap-1">
+              <button class="btn btn-ghost" title="上移" onclick="moveRule('${r.id}',-1)">↑</button>
+              <button class="btn btn-ghost" title="下移" onclick="moveRule('${r.id}',1)">↓</button>
+              <button class="btn btn-ghost" title="交换查找与替换" onclick="swapRule('${r.id}')">交换</button>
+              <button class="btn btn-ghost" title="复制" onclick="duplicateRule('${r.id}')">复制</button>
+              <button class="btn btn-ghost" title="删除" onclick="removeRule('${r.id}')">删除</button>
+              <button class="toggle ${r.enabled ? "on" : ""}" data-act="enable" title="启用"><i></i></button>
+            </div>
+          </div>
+          <div class="grid gap-2">
+            <div class="grid grid-cols-12 gap-2">
+              <label class="col-span-7">
+                <span class="block text-[11px] mb-1" style="color:var(--muted)">查找关键词 / 模式</span>
+                <input class="field" data-k="find" value="${escapeHtml(r.find)}" placeholder="输入要查找的文字" />
+              </label>
+              <label class="col-span-3">
+                <span class="block text-[11px] mb-1" style="color:var(--muted)">匹配方式</span>
+                <select class="field" data-k="mode">
+                  <option value="exact" ${r.mode === "exact" ? "selected" : ""}>精确</option>
+                  <option value="word" ${r.mode === "word" ? "selected" : ""}>整词</option>
+                  <option value="regex" ${r.mode === "regex" ? "selected" : ""}>正则</option>
+                </select>
+              </label>
+              <label class="col-span-2 flex flex-col">
+                <span class="block text-[11px] mb-1" style="color:var(--muted)">选项</span>
+                <div class="flex gap-1">
+                  <button class="btn h-[38px] flex-1 ${r.caseSensitive ? "btn-primary" : ""}" data-act="case" title="区分大小写">Aa</button>
+                  <button class="btn h-[38px] flex-1 ${r.multiline ? "btn-primary" : ""} ${r.mode !== "regex" ? "opacity-40" : ""}" data-act="multi" title="正则多行模式 ^ $ 匹配每行">m</button>
+                </div>
+              </label>
+            </div>
+            <div class="grid grid-cols-12 gap-2 items-end">
+              <div class="col-span-4">
+                <span class="block text-[11px] mb-1" style="color:var(--muted)">操作</span>
+                <div class="seg">
+                  <button class="${r.action === "replace" ? "on" : ""}" data-act="action" data-v="replace">替换</button>
+                  <button class="${r.action === "delete" ? "on" : ""}" data-act="action" data-v="delete">删除</button>
+                </div>
+              </div>
+              <label class="col-span-8 ${r.action === "delete" ? "opacity-40 pointer-events-none" : ""}">
+                <span class="block text-[11px] mb-1" style="color:var(--muted)">替换为</span>
+                <input class="field" data-k="replace" value="${escapeHtml(r.replace)}" placeholder="留空等于删除这段文字" />
+              </label>
+            </div>
+            <div class="grid grid-cols-12 gap-2">
+              <label class="col-span-3">
+                <span class="block text-[11px] mb-1" style="color:var(--muted)">关键词前 N 字</span>
+                <input class="field num w-full" type="number" min="0" max="9999" data-k="before" value="${r.before}" />
+              </label>
+              <label class="col-span-3">
+                <span class="block text-[11px] mb-1" style="color:var(--muted)">关键词后 N 字</span>
+                <input class="field num w-full" type="number" min="0" max="9999" data-k="after" value="${r.after}" />
+              </label>
+              <label class="col-span-3">
+                <span class="block text-[11px] mb-1" style="color:var(--muted)">生效范围</span>
+                <select class="field" data-k="occType">
+                  <option value="all" ${r.occType === "all" ? "selected" : ""}>全部</option>
+                  <option value="first" ${r.occType === "first" ? "selected" : ""}>前 N 次</option>
+                  <option value="last" ${r.occType === "last" ? "selected" : ""}>后 N 次</option>
+                  <option value="nth" ${r.occType === "nth" ? "selected" : ""}>仅第 N 次</option>
+                </select>
+              </label>
+              <label class="col-span-3">
+                <span class="block text-[11px] mb-1" style="color:var(--muted)">N 值</span>
+                <input class="field num w-full" type="number" min="1" max="9999" data-k="occN" value="${r.occN}" ${r.occType === "all" ? "disabled" : ""} />
+              </label>
+            </div>
+            <p class="text-[11px] leading-5" style="color:var(--muted)">
+              前后 N 字会连同关键词一起替换或删除。例如查找「998」，前 3 后 1，可一次处理「是998元」。
+            </p>
+            <p class="text-[11px] mono leading-5 px-2 py-1 rounded-lg" style="background:var(--paper);color:var(--ink-soft)" data-sample>等待匹配…</p>
+          </div>
+        </div>
+      </article>`;
+    }
+
+    function bindRuleEvents() {
+      document.querySelectorAll("[data-rule]").forEach((card) => {
+        const id = card.getAttribute("data-rule");
+        card.querySelectorAll("[data-k]").forEach((el) => {
+          const ev = el.tagName === "SELECT" ? "change" : "input";
+          el.addEventListener(ev, () => {
+            let val = el.value;
+            if (el.type === "number") val = Math.max(0, parseInt(val || "0", 10));
+            if (!state._histLock) { pushHistory(); state._histLock = true; setTimeout(() => state._histLock = false, 600); }
+            const key = el.getAttribute("data-k");
+            updateRule(id, key, val);
+            if (key === "occType" || key === "mode") renderRules();
+          });
+        });
+        card.querySelectorAll("[data-act]").forEach((el) => {
+          el.addEventListener("click", (e) => {
+            e.preventDefault();
+            const act = el.getAttribute("data-act");
+            pushHistory();
+            const r = state.rules.find((x) => x.id === id);
+            if (act === "enable") r.enabled = !r.enabled;
+            if (act === "case") r.caseSensitive = !r.caseSensitive;
+            if (act === "multi") r.multiline = !r.multiline;
+            if (act === "action") r.action = el.getAttribute("data-v");
+            renderRules(); persist(); run();
+          });
+        });
+        card.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", id);
+          card.style.opacity = .5;
+        });
+        card.addEventListener("dragend", () => card.style.opacity = 1);
+        card.addEventListener("dragover", (e) => { e.preventDefault(); card.style.outline = "1px dashed var(--accent)"; });
+        card.addEventListener("dragleave", () => card.style.outline = "");
+        card.addEventListener("drop", (e) => {
+          e.preventDefault(); card.style.outline = "";
+          const from = e.dataTransfer.getData("text/plain");
+          const a = state.rules.findIndex((x) => x.id === from);
+          const b = state.rules.findIndex((x) => x.id === id);
+          if (a < 0 || b < 0 || a === b) return;
+          pushHistory();
+          const [item] = state.rules.splice(a, 1);
+          state.rules.splice(b, 0, item);
+          renderRules(); persist(); run();
+        });
+      });
+    }
+
+    function isWordChar(ch) {
+      return /[0-9A-Za-z_\u00C0-\u024F\u4e00-\u9fff]/.test(ch || "");
+    }
+    function isWholeWord(text, start, end) {
+      const prev = start > 0 ? text[start - 1] : "";
+      const next = end < text.length ? text[end] : "";
+      return !isWordChar(prev) && !isWordChar(next);
+    }
+
+    function findMatches(text, rule) {
+      const out = [];
+      if (!rule.find) return out;
+      if (rule.mode === "regex") {
+        let flags = "gu" + (rule.caseSensitive ? "" : "i") + (rule.multiline ? "m" : "");
+        try {
+          const re = new RegExp(rule.find, flags);
+          let m, guard = 0;
+          while ((m = re.exec(text)) !== null) {
+            if (m[0].length === 0) { re.lastIndex++; continue; }
+            out.push({ start: m.index, end: m.index + m[0].length, keyword: m[0] });
+            if (++guard > 20000) break;
+          }
+        } catch (err) {
+          return Object.assign([], { error: err.message });
+        }
+      } else {
+        const src = rule.caseSensitive ? text : text.toLowerCase();
+        const pat = rule.caseSensitive ? rule.find : rule.find.toLowerCase();
+        if (!pat) return out;
+        let pos = 0;
+        while (pos <= src.length - pat.length) {
+          const i = src.indexOf(pat, pos);
+          if (i === -1) break;
+          if (rule.mode === "word" && !isWholeWord(text, i, i + pat.length)) {
+            pos = i + 1; continue;
+          }
+          out.push({ start: i, end: i + pat.length, keyword: text.slice(i, i + pat.length) });
+          pos = i + Math.max(pat.length, 1);
+        }
+      }
+      const before = Math.max(0, Number(rule.before) || 0);
+      const after = Math.max(0, Number(rule.after) || 0);
+      const expanded = out.map((m) => {
+        const s = Math.max(0, m.start - before);
+        const e = Math.min(text.length, m.end + after);
+        return { ...m, start: s, end: e, text: text.slice(s, e), kwStart: m.start, kwEnd: m.end };
+      });
+      const filtered = filterOcc(dedupeOverlap(expanded), rule);
+      return filtered;
+    }
+
+    function dedupeOverlap(matches) {
+      const sorted = [...matches].sort((a, b) => a.start - b.start || b.end - a.end);
+      const kept = [];
+      let lastEnd = -1;
+      for (const m of sorted) {
+        if (m.start < lastEnd) continue;
+        kept.push(m);
+        lastEnd = m.end;
+      }
+      return kept;
+    }
+
+    function filterOcc(matches, rule) {
+      const n = Math.max(1, Number(rule.occN) || 1);
+      if (rule.occType === "first") return matches.slice(0, n);
+      if (rule.occType === "last") return matches.slice(-n);
+      if (rule.occType === "nth") return matches[n - 1] ? [matches[n - 1]] : [];
+      return matches;
+    }
+
+    function liveMap(pieces) {
+      const map = [];
+      pieces.forEach((p, i) => {
+        if (p.type === "del") return;
+        for (let o = 0; o < p.text.length; o++) map.push({ i, o });
+      });
+      return map;
+    }
+    function liveText(pieces) {
+      return pieces.filter((p) => p.type !== "del").map((p) => p.text).join("");
+    }
+    function splitPiece(pieces, idx, offset) {
+      const p = pieces[idx];
+      if (!p || offset <= 0 || offset >= p.text.length) return pieces;
+      const left = { ...p, text: p.text.slice(0, offset) };
+      const right = { ...p, text: p.text.slice(offset) };
+      const next = pieces.slice();
+      next.splice(idx, 1, left, right);
+      return next;
+    }
+
+    function regexFlags(rule, global) {
+      return (global ? "g" : "") + "u" + (rule.caseSensitive ? "" : "i") + (rule.multiline ? "m" : "");
+    }
+
+    function computeReplacement(rule, match, live) {
+      if (rule.action === "delete") return "";
+      const repl = rule.replace ?? "";
+      if (rule.mode !== "regex") return repl;
+      try {
+        const kw = live.slice(match.kwStart, match.kwEnd);
+        return kw.replace(new RegExp(rule.find, regexFlags(rule, false)), repl);
+      } catch {
+        return repl;
+      }
+    }
+
+    function applyMatch(pieces, match, rule, replacement) {
+      let map = liveMap(pieces);
+      const start = Math.max(0, match.start);
+      const end = Math.min(map.length, match.end);
+      if (replacement === undefined) replacement = rule.action === "delete" ? "" : (rule.replace ?? "");
+      if (start > end) return pieces;
+      if (end > start) {
+        const endM = map[end - 1];
+        pieces = splitPiece(pieces, endM.i, endM.o + 1);
+        map = liveMap(pieces);
+        const startM = map[start];
+        pieces = splitPiece(pieces, startM.i, startM.o);
+        map = liveMap(pieces);
+        const idxs = [];
+        for (let k = start; k < end; k++) {
+          const id = map[k].i;
+          if (!idxs.includes(id)) idxs.push(id);
+        }
+        idxs.sort((a, b) => a - b);
+        pieces = pieces.map((p, i) => idxs.includes(i) && p.type !== "del"
+          ? { ...p, type: "del", ruleId: rule.id, action: rule.action }
+          : p);
+        if (replacement !== "") {
+          pieces.splice(idxs[idxs.length - 1] + 1, 0, {
+            type: "ins", text: replacement, ruleId: rule.id, action: rule.action
+          });
+        }
+      } else if (replacement !== "") {
+        const at = start < map.length ? map[start].i : pieces.length;
+        const off = start < map.length ? map[start].o : 0;
+        if (start < map.length && off > 0) {
+          pieces = splitPiece(pieces, at, off);
+          pieces.splice(at + 1, 0, { type: "ins", text: replacement, ruleId: rule.id, action: rule.action });
+        } else {
+          pieces.splice(at, 0, { type: "ins", text: replacement, ruleId: rule.id, action: rule.action });
+        }
+      }
+      return pieces;
+    }
+
+    function applyAll(text, rules) {
+      let pieces = [{ type: "eq", text, ruleId: null }];
+      const logs = [];
+      for (const rule of rules) {
+        if (!rule.enabled) { rule._matchInfo = "已停用"; continue; }
+        if (!rule.find) { rule._matchInfo = "未填写"; continue; }
+        const current = liveText(pieces);
+        let matches = findMatches(current, rule);
+        if (matches.error) {
+          rule._matchInfo = "正则错误";
+          logs.push({ rule, error: matches.error });
+          continue;
+        }
+        rule._matchInfo = matches.length ? `命中 ${matches.length} 处` : "无匹配";
+        if (!matches.length) continue;
+        matches = [...matches].sort((a, b) => b.start - a.start);
+        for (const m of matches) {
+          const to = computeReplacement(rule, m, current);
+          logs.push({
+            ruleId: rule.id,
+            color: rule.color,
+            action: rule.action,
+            from: m.text,
+            to,
+            keyword: m.keyword
+          });
+          pieces = applyMatch(pieces, m, rule, to);
+        }
+      }
+      return { pieces, logs, result: liveText(pieces) };
+    }
+
+    function renderPieces(pieces) {
+      return pieces.map((p) => {
+        if (!p.text) return "";
+        const html = escapeHtml(p.text);
+        if (p.type === "del") return `<span class="mark-del" title="已删除">${html}</span>`;
+        if (p.type === "ins") return `<span class="mark-ins" title="替换新增">${html}</span>`;
+        return html;
+      }).join("");
+    }
+
+    function renderOriginMarks(text, rules) {
+      const marks = [];
+      for (const rule of rules) {
+        if (!rule.enabled || !rule.find) continue;
+        const matches = findMatches(text, rule);
+        if (matches.error) continue;
+        for (const m of matches) {
+          marks.push({ ...m, rule, kind: rule.action });
+        }
+      }
+      marks.sort((a, b) => a.start - b.start || b.end - a.end);
+      const kept = [];
+      let last = -1;
+      for (const m of marks) {
+        if (m.start < last) continue;
+        kept.push(m); last = m.end;
+      }
+      let html = "", cursor = 0;
+      for (const m of kept) {
+        html += escapeHtml(text.slice(cursor, m.start));
+        const before = text.slice(m.start, m.kwStart);
+        const kw = text.slice(m.kwStart, m.kwEnd);
+        const after = text.slice(m.kwEnd, m.end);
+        const cls = m.kind === "delete" ? "mark-del" : "mark-hit";
+        html += `<span class="${cls}" title="${escapeHtml(ruleTitle(m.rule))}">${escapeHtml(before)}<strong>${escapeHtml(kw)}</strong>${escapeHtml(after)}</span>`;
+        cursor = m.end;
+      }
+      html += escapeHtml(text.slice(cursor));
+      return html;
+    }
+
+    function renderLog(logs) {
+      const rows = logs.filter((l) => !l.error);
+      if (!rows.length) {
+        return `<div class="h-full grid place-items-center" style="color:var(--muted)">没有发生替换</div>`;
+      }
+      return `<div class="preview-font" style="font-size:14px;line-height:1.6">
+        <div class="grid grid-cols-[56px_1fr_24px_1fr_72px] gap-2 text-[11px] mb-2" style="color:var(--muted)">
+          <span>规则</span><span>原文片段</span><span></span><span>结果</span><span>类型</span>
+        </div>
+        ${rows.map((l, i) => {
+          const idx = state.rules.findIndex((x) => x.id === l.ruleId) + 1;
+          const kind = l.action === "delete" || l.to === "" ? "删除" : "替换";
+          const color = kind === "删除" ? "var(--del)" : "var(--ins)";
+          return `<div class="grid grid-cols-[56px_1fr_24px_1fr_72px] gap-2 items-start py-2 border-b" style="border-color:var(--line)">
+            <span class="stat text-xs">#${idx}</span>
+            <span class="mark-del">${escapeHtml(clip(l.from, 80)) || "∅"}</span>
+            <span style="color:var(--muted)">→</span>
+            <span class="${l.to ? "mark-ins" : ""}">${escapeHtml(clip(l.to, 80)) || "∅"}</span>
+            <span class="text-xs" style="color:${color}">${kind}</span>
+          </div>`;
+        }).join("")}
+      </div>`;
+    }
+
+    function ruleTitle(r) {
+      const i = state.rules.findIndex((x) => x.id === r.id) + 1;
+      return `规则 ${i} · ${r.action === "delete" ? "删除" : "替换"}`;
+    }
+
+    function countStats(text) {
+      const chars = text.length;
+      const charsNoSpace = text.replace(/\s/g, "").length;
+      const words = (text.trim().match(/[A-Za-z0-9_]+|[\u4e00-\u9fff]/g) || []).length;
+      const lines = text ? text.split(/\n/).length : 0;
+      const paras = text.trim() ? text.trim().split(/\n\s*\n/).length : 0;
+      return { chars, charsNoSpace, words, lines, paras };
+    }
+
+    function run() {
+      const text = $("source").value;
+      const st = countStats(text);
+      $("sourceStats").textContent = `${st.chars} 字 · ${st.words} 词 · ${st.lines} 行`;
+
+      const { pieces, logs, result } = applyAll(text, state.rules);
+      state._result = result;
+      state._pieces = pieces;
+      state._logs = logs;
+
+      const preview = $("preview");
+      if (!text.trim() && !state.rules.some((r) => r.find)) {
+        preview.innerHTML = `
+          <div class="h-full grid place-items-center text-center" style="color:var(--muted)">
+            <div>
+              <p class="serif text-3xl mb-2" style="color:var(--ink)">把文章放在左侧</p>
+              <p class="text-sm">添加一条或多条规则后，这里会即时显示红绿修订对照。</p>
+            </div>
+          </div>`;
+      } else if (state.view === "diff") {
+        preview.innerHTML = renderPieces(pieces) || '<span style="color:var(--muted)">（结果为空）</span>';
+      } else if (state.view === "result") {
+        preview.textContent = result || "（结果为空）";
+      } else if (state.view === "log") {
+        preview.innerHTML = renderLog(logs);
+      } else {
+        preview.innerHTML = renderOriginMarks(text, state.rules) || escapeHtml(text);
+      }
+
+      const del = pieces.filter((p) => p.type === "del").reduce((n, p) => n + p.text.length, 0);
+      const ins = pieces.filter((p) => p.type === "ins").reduce((n, p) => n + p.text.length, 0);
+      const ops = logs.filter((l) => !l.error).length;
+      $("diffStats").innerHTML = `
+        <span>生效 ${ops} 处</span>
+        <span style="color:var(--del)">删除 ${del}</span>
+        <span style="color:var(--ins)">新增 ${ins}</span>
+        <span>结果 ${result.length} 字</span>`;
+
+      const chips = $("changeChips");
+      const byRule = {};
+      logs.forEach((l) => {
+        if (l.error) return;
+        if (!byRule[l.ruleId]) byRule[l.ruleId] = { n: 0, l };
+        byRule[l.ruleId].n++;
+      });
+      const entries = Object.values(byRule);
+      chips.innerHTML = entries.length
+        ? entries.map(({ n, l }) => {
+            const r = state.rules.find((x) => x.id === l.ruleId);
+            const idx = state.rules.findIndex((x) => x.id === l.ruleId) + 1;
+            const label = l.action === "delete"
+              ? `规则${idx} 删除「${clip(l.keyword, 10)}」×${n}`
+              : `规则${idx} 「${clip(l.keyword, 8)}」→「${clip(l.to, 8)}」×${n}`;
+            return `<span class="chip"><i style="width:8px;height:8px;border-radius:50%;background:${r ? r.color : "#999"}"></i>${escapeHtml(label)}</span>`;
+          }).join("")
+        : `<span class="text-xs" style="color:var(--muted)">没有发生替换</span>`;
+
+      document.querySelectorAll("[data-rule]").forEach((card) => {
+        const r = state.rules.find((x) => x.id === card.getAttribute("data-rule"));
+        if (!r) return;
+        const badge = card.querySelector("[data-match-badge]");
+        if (badge) badge.textContent = r._matchInfo || "未匹配";
+        const sample = card.querySelector("[data-sample]");
+        if (!sample) return;
+        if (!r.find || !r.enabled) { sample.textContent = "填写关键词后，这里显示首个命中片段"; return; }
+        const ms = findMatches(text, r);
+        if (ms.error) { sample.textContent = "正则无效：" + ms.error; return; }
+        if (!ms.length) { sample.textContent = "当前原文中没有匹配"; return; }
+        const m = ms[0];
+        const vis = `${m.start > 0 ? "…" : ""}【${m.text}】${m.end < text.length ? "…" : ""}`;
+        sample.textContent = `首个范围（含前后文）：${clip(vis, 48)} · 共 ${ms.length} 处`;
+      });
+      if ($("previewFind").value) highlightPreviewFind();
+    }
+
+    function clip(s, n) {
+      s = String(s ?? "");
+      return s.length > n ? s.slice(0, n) + "…" : s;
+    }
+
+    function persist() {
+      try {
+        localStorage.setItem(LS.data, JSON.stringify({
+          source: $("source").value,
+          rules: state.rules.map(({ _matchInfo, ...r }) => r),
+          view: state.view, wrap: state.wrap, font: state.font
+        }));
+      } catch {}
+    }
+
+    function restore() {
+      try {
+        const raw = localStorage.getItem(LS.data);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        $("source").value = data.source || "";
+        state.rules = Array.isArray(data.rules) ? data.rules.map((r) => defaultRule(r)) : [];
+        state.view = data.view || "diff";
+        state.wrap = data.wrap !== false;
+        state.font = data.font || 16;
+        return true;
+      } catch { return false; }
+    }
+
+    function snapshot() {
+      return JSON.stringify({ source: $("source").value, rules: state.rules });
+    }
+    function pushHistory() {
+      state.history.push(snapshot());
+      if (state.history.length > 80) state.history.shift();
+      state.future = [];
+    }
+    function undo() {
+      if (!state.history.length) return toast("没有可撤销的操作");
+      state.future.push(snapshot());
+      applySnap(state.history.pop());
+      toast("已撤销");
+    }
+    function redo() {
+      if (!state.future.length) return toast("没有可重做的操作");
+      state.history.push(snapshot());
+      applySnap(state.future.pop());
+      toast("已重做");
+    }
+    function applySnap(raw) {
+      const data = JSON.parse(raw);
+      $("source").value = data.source;
+      state.rules = data.rules;
+      renderRules(); persist(); run();
+    }
+
+    function copyResult() {
+      const text = state._result ?? $("source").value;
+      navigator.clipboard.writeText(text).then(() => toast("结果已复制到剪贴板")).catch(() => toast("复制失败"));
+    }
+    function downloadResult() {
+      const text = state._result ?? "";
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `易辞结果-${new Date().toISOString().slice(0,19).replace(/[:T]/g,"")}.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast("已下载结果文本");
+    }
+    function applyToSource() {
+      pushHistory();
+      $("source").value = state._result ?? "";
+      persist(); run();
+      toast("结果已写回原文，可继续叠加处理");
+    }
+    function clearSource() {
+      pushHistory();
+      $("source").value = "";
+      persist(); run();
+    }
+    async function pasteSource() {
+      try {
+        const t = await navigator.clipboard.readText();
+        pushHistory();
+        $("source").value = t;
+        persist(); run();
+        toast("已从剪贴板粘贴");
+      } catch { toast("无法读取剪贴板，请直接 Ctrl+V"); }
+    }
+    function exportProject() {
+      const data = {
+        app: "yici",
+        savedAt: new Date().toISOString(),
+        source: $("source").value,
+        rules: state.rules.map(({ _matchInfo, ...r }) => r),
+        view: state.view
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "yici-workspace.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast("工作区已保存");
+    }
+    function importProject(obj) {
+      if (!obj || typeof obj !== "object") throw new Error("bad");
+      pushHistory();
+      if (typeof obj.source === "string") $("source").value = obj.source;
+      if (Array.isArray(obj.rules)) state.rules = obj.rules.map((r) => defaultRule(r));
+      renderRules(); persist(); run();
+    }
+    function exportRules() {
+      const blob = new Blob([JSON.stringify(state.rules.map(({_matchInfo,...r}) => r), null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "yici-rules.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast("规则已导出");
+    }
+
+    function changeFont(d) {
+      state.font = Math.min(28, Math.max(12, state.font + d));
+      $("preview").style.fontSize = state.font + "px";
+      persist();
+    }
+    function toggleWrap() {
+      state.wrap = !state.wrap;
+      $("preview").classList.toggle("nowrap", !state.wrap);
+      $("wrapBtn").textContent = state.wrap ? "换行" : "不换行";
+      persist();
+    }
+    function toggleTheme() {
+      const dark = document.documentElement.classList.toggle("dark");
+      localStorage.setItem(LS.theme, dark ? "dark" : "light");
+      $("themeBtn").textContent = dark ? "日间" : "夜间";
+    }
+    function openModal(id) { $(id).classList.add("show"); }
+    function closeModal(id) { $(id).classList.remove("show"); }
+
+    const TEMPLATES = [
+      { name: "压缩多余空格", desc: "连续空格、制表符变为一个空格", find: "[\\t ]{2,}", replace: " ", mode: "regex", action: "replace" },
+      { name: "删除空行", desc: "去掉多余的空白行", find: "\\n\\s*\\n+", replace: "\n", mode: "regex", action: "replace" },
+      { name: "去除 HTML 标签", desc: "删除尖括号标签", find: "<[^>]+>", replace: "", mode: "regex", action: "delete" },
+      { name: "去除网址", desc: "删除 http/https 链接", find: "https?:\\/\\/\\S+", replace: "", mode: "regex", action: "delete" },
+      { name: "中英之间加空格", desc: "中文与英文/数字之间插入空格", find: "([\\u4e00-\\u9fff])([A-Za-z0-9])", replace: "$1 $2", mode: "regex", action: "replace" },
+      { name: "英文中文间加空格", desc: "英文/数字与中文之间插入空格", find: "([A-Za-z0-9])([\\u4e00-\\u9fff])", replace: "$1 $2", mode: "regex", action: "replace" },
+      { name: "全角空格转半角", desc: "将全角空格换成普通空格", find: "　", replace: " ", mode: "exact", action: "replace" },
+      { name: "英文逗号转中文", desc: "半角逗号换成中文逗号", find: ",", replace: "，", mode: "exact", action: "replace" },
+      { name: "英文句号转中文", desc: "句点换成中文句号（避开小数）", find: "(?<![0-9])\\.(?![0-9])", replace: "。", mode: "regex", action: "replace" },
+      { name: "去除行首行尾空格", desc: "清理每行两侧空白", find: "^[\\t ]+|[\\t ]+$", replace: "", mode: "regex", action: "delete", multiline: true },
+      { name: "换行改空格", desc: "把换行变成空格，适合粘贴段落", find: "\\n+", replace: " ", mode: "regex", action: "replace" },
+      { name: "连续重复词压缩", desc: "把「非常非常」一类叠词收成一次", find: "([\\u4e00-\\u9fff]{1,3})\\1", replace: "$1", mode: "regex", action: "replace" },
+      { name: "去除邮箱", desc: "删除电子邮箱地址", find: "[\\w.+-]+@[\\w-]+\\.[\\w.-]+", replace: "", mode: "regex", action: "delete" },
+      { name: "去除大陆手机号", desc: "删除 11 位手机号码", find: "1[3-9]\\d{9}", replace: "", mode: "regex", action: "delete" }
+    ];
+
+    function renderTemplates() {
+      $("tplList").innerHTML = TEMPLATES.map((t, i) => `
+        <button class="rule-card rounded-xl p-4 text-left" onclick="useTemplate(${i})">
+          <div class="serif text-lg mb-1">${t.name}</div>
+          <p class="text-xs leading-5" style="color:var(--muted)">${t.desc}</p>
+          <p class="mono text-[11px] mt-2" style="color:var(--gold)">${escapeHtml(t.find)} → ${escapeHtml(t.replace || "∅")}</p>
+        </button>
+      `).join("");
+    }
+    function useTemplate(i) {
+      addRule(TEMPLATES[i]);
+      closeModal("tplModal");
+      toast("已加入模板规则");
+    }
+
+    function loadSample() {
+      pushHistory();
+      $("source").value = `易辞工作室内测稿
+
+今天我们在北京发布了新产品YICI Studio，价格是998元。官方介绍称，这是一款面向编辑、运营与学术写作者的文字替换工作台。
+
+原文中多次出现“非常非常”这样的叠词，读起来非常非常拖沓。此外还有一些敏感占位：联系电话 13800138000，邮箱 demo@example.com，以及网址 https://example.com/path?q=1。
+
+旧品牌名「红墨笔记」将全面升级为新名称。请把文中所有“红墨笔记”替换成“易辞”，并把价格数字前后的说明一起处理。
+
+段落之间空行过多。
+
+
+还有全角空格　混在　　半角空格里。HTML残留：<b>加粗</b>不该出现在纯文本里。
+
+我们希望：删除电话与邮箱，替换品牌，压缩空白，并保留修订痕迹供核对。`;
+      state.rules = [
+        defaultRule({ find: "红墨笔记", replace: "易辞", action: "replace", mode: "exact", color: COLORS[0] }),
+        defaultRule({ find: "非常非常", replace: "十分", action: "replace", mode: "exact", color: COLORS[1] }),
+        defaultRule({ find: "998", replace: "1299", action: "replace", before: 3, after: 1, color: COLORS[2] }),
+        defaultRule({ find: "1[3-9]\\d{9}", replace: "", action: "delete", mode: "regex", color: COLORS[3] }),
+        defaultRule({ find: "[\\w.+-]+@[\\w-]+\\.[\\w.-]+", replace: "", action: "delete", mode: "regex", color: COLORS[4] }),
+        defaultRule({ find: "YICI Studio", replace: "易辞工作室", action: "replace", mode: "exact", caseSensitive: true, color: COLORS[5] })
+      ];
+      renderRules(); persist(); run();
+      toast("已载入示例文章与 6 条规则");
+    }
+
+    function highlightPreviewFind() {
+      const q = ($("previewFind").value || "").trim();
+      const preview = $("preview");
+      preview.querySelectorAll("mark.mark-find").forEach((el) => {
+        const t = document.createTextNode(el.textContent);
+        el.replaceWith(t);
+      });
+      preview.normalize();
+      state._hits = [];
+      state._hitIdx = -1;
+      if (!q || q.length > 60) return;
+      const walker = document.createTreeWalker(preview, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      const ql = q.toLowerCase();
+      nodes.forEach((node) => {
+        const src = node.nodeValue;
+        const low = src.toLowerCase();
+        let pos = 0, idx;
+        const frag = document.createDocumentFragment();
+        let last = 0, found = false;
+        while ((idx = low.indexOf(ql, pos)) !== -1) {
+          found = true;
+          if (idx > last) frag.appendChild(document.createTextNode(src.slice(last, idx)));
+          const mark = document.createElement("mark");
+          mark.className = "mark-find";
+          mark.textContent = src.slice(idx, idx + q.length);
+          frag.appendChild(mark);
+          state._hits.push(mark);
+          last = idx + q.length;
+          pos = last;
+        }
+        if (!found) return;
+        if (last < src.length) frag.appendChild(document.createTextNode(src.slice(last)));
+        node.parentNode.replaceChild(frag, node);
+      });
+    }
+
+    function jumpHit(dir) {
+      if (!state._hits || !state._hits.length) {
+        highlightPreviewFind();
+        if (!state._hits.length) return toast("预览中没有找到");
+      }
+      state._hitIdx = (state._hitIdx + dir + state._hits.length) % state._hits.length;
+      state._hits.forEach((el, i) => el.classList.toggle("on", i === state._hitIdx));
+      state._hits[state._hitIdx].scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+
+    function setupSplitter() {
+      const s = $("splitter");
+      let dragging = false;
+      s.addEventListener("mousedown", () => dragging = true);
+      window.addEventListener("mouseup", () => dragging = false);
+      window.addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        const w = Math.min(window.innerWidth * 0.7, Math.max(320, e.clientX));
+        $("leftCol").style.width = w + "px";
+      });
+      const hs = $("hSplitter");
+      let hd = false;
+      hs.addEventListener("mousedown", () => hd = true);
+      window.addEventListener("mouseup", () => hd = false);
+      window.addEventListener("mousemove", (e) => {
+        if (!hd) return;
+        const col = $("leftCol").getBoundingClientRect();
+        const top = $("sourcePane").getBoundingClientRect().top;
+        const h = Math.min(col.height * 0.7, Math.max(120, e.clientY - top));
+        $("sourcePane").style.height = h + "px";
+      });
+    }
+
+    function setupIO() {
+      $("fileIn").addEventListener("change", (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => { pushHistory(); $("source").value = reader.result; persist(); run(); toast("已导入 " + f.name); };
+        reader.readAsText(f); e.target.value = "";
+      });
+      $("projIn").addEventListener("change", (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const obj = JSON.parse(reader.result);
+            if (Array.isArray(obj)) {
+              pushHistory();
+              obj.forEach((r) => state.rules.push(defaultRule(r)));
+              renderRules(); persist(); run();
+              toast("已作为规则列表导入");
+            } else {
+              importProject(obj);
+              toast("已打开工作区 " + f.name);
+            }
+          } catch { toast("工作区文件无法解析"); }
+        };
+        reader.readAsText(f); e.target.value = "";
+      });
+      $("ruleIn").addEventListener("change", (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const arr = JSON.parse(reader.result);
+            if (!Array.isArray(arr)) throw new Error("格式不正确");
+            pushHistory();
+            arr.forEach((r) => state.rules.push(defaultRule(r)));
+            renderRules(); persist(); run();
+            toast("已导入 " + arr.length + " 条规则");
+          } catch { toast("规则文件无法解析"); }
+        };
+        reader.readAsText(f); e.target.value = "";
+      });
+      const src = $("source");
+      src.addEventListener("input", () => {
+        if (!state._histLock) { pushHistory(); state._histLock = true; setTimeout(() => state._histLock = false, 800); }
+        persist(); run();
+      });
+      src.addEventListener("dragover", (e) => { e.preventDefault(); src.classList.add("drop-hover"); });
+      src.addEventListener("dragleave", () => src.classList.remove("drop-hover"));
+      src.addEventListener("drop", (e) => {
+        e.preventDefault(); src.classList.remove("drop-hover");
+        const f = e.dataTransfer.files[0];
+        if (f) {
+          const reader = new FileReader();
+          reader.onload = () => { pushHistory(); src.value = reader.result; persist(); run(); toast("已导入 " + f.name); };
+          reader.readAsText(f);
+        } else {
+          const t = e.dataTransfer.getData("text/plain");
+          if (t) { pushHistory(); src.value = t; persist(); run(); }
+        }
+      });
+      document.querySelectorAll("#viewSeg button").forEach((b) => {
+        b.addEventListener("click", () => {
+          state.view = b.getAttribute("data-view");
+          document.querySelectorAll("#viewSeg button").forEach((x) => x.classList.toggle("on", x === b));
+          persist(); run();
+          highlightPreviewFind();
+        });
+      });
+      $("previewFind").addEventListener("input", highlightPreviewFind);
+      $("previewFind").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); jumpHit(e.shiftKey ? -1 : 1); }
+      });
+      document.querySelectorAll(".modal-bg").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m) m.classList.remove("show"); }));
+
+      const tip = $("selTip");
+      const tipBtn = $("selTipBtn");
+      const hideTip = () => tip.classList.add("hidden");
+      const showSelTip = () => {
+        const start = src.selectionStart, end = src.selectionEnd;
+        const picked = src.value.slice(start, end);
+        if (!picked || picked.length > 80 || !picked.trim()) { hideTip(); return; }
+        tipBtn.textContent = `将「${clip(picked.trim(), 12)}」加入规则`;
+        tipBtn.onclick = () => {
+          addRule({ find: picked });
+          hideTip();
+          toast("已用选中文字创建规则");
+        };
+        tip.classList.remove("hidden");
+      };
+      src.addEventListener("mouseup", showSelTip);
+      src.addEventListener("keyup", (e) => { if (e.shiftKey || e.key === "ArrowLeft" || e.key === "ArrowRight") showSelTip(); });
+      document.addEventListener("mousedown", (e) => { if (!tip.contains(e.target) && e.target !== src) hideTip(); });
+    }
+
+    function setupKeys() {
+      document.addEventListener("keydown", (e) => {
+        const meta = e.metaKey || e.ctrlKey;
+        if (meta && e.key.toLowerCase() === "d") { e.preventDefault(); addRule(); }
+        if (meta && e.shiftKey && e.key.toLowerCase() === "c") { e.preventDefault(); copyResult(); }
+        if (meta && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+        if (meta && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) { e.preventDefault(); redo(); }
+        if (meta && e.key.toLowerCase() === "o") { e.preventDefault(); $("fileIn").click(); }
+        if (meta && e.key.toLowerCase() === "s") { e.preventDefault(); downloadResult(); }
+        if (meta && e.shiftKey && e.key.toLowerCase() === "l") { e.preventDefault(); toggleTheme(); }
+        if (e.key === "Escape") document.querySelectorAll(".modal-bg.show").forEach((m) => m.classList.remove("show"));
+      });
+    }
+
+    function init() {
+      if (localStorage.getItem(LS.theme) === "dark") {
+        document.documentElement.classList.add("dark");
+        $("themeBtn").textContent = "日间";
+      }
+      const had = restore();
+      $("preview").style.fontSize = state.font + "px";
+      $("preview").classList.toggle("nowrap", !state.wrap);
+      $("wrapBtn").textContent = state.wrap ? "换行" : "不换行";
+      document.querySelectorAll("#viewSeg button").forEach((b) => b.classList.toggle("on", b.getAttribute("data-view") === state.view));
+      renderRules();
+      renderTemplates();
+      setupSplitter();
+      setupIO();
+      setupKeys();
+      if (!had) {
+        $("preview").innerHTML = `
+          <div class="h-full grid place-items-center text-center">
+            <div>
+              <p class="serif text-4xl mb-3">字句可易，文气仍在</p>
+              <p class="text-sm mb-6 max-w-md mx-auto" style="color:var(--muted)">支持多关键词并行、前后文扩展选取、替换或删除，并在右侧用红色删除线与绿色新增标记每一次改动。</p>
+              <button class="btn btn-primary" onclick="loadSample()">载入示例体验</button>
+            </div>
+          </div>`;
+      } else run();
+    }
+    init();
+  </script>
+</body>
+</html>
