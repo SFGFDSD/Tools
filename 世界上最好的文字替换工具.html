@@ -144,6 +144,25 @@
       background: #fff; border-radius: 50%; transition: transform .2s;
     }
     .toggle.on i { transform: translateX(16px); }
+    .toggle.mini { width: 30px; height: 17px; flex: none; }
+    .toggle.mini i { width: 13px; height: 13px; }
+    .toggle.mini.on i { transform: translateX(13px); }
+
+    .log-row { transition: background .15s ease; }
+    .log-row:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+    .log-off .stat, .log-off .arrow { opacity: .5; }
+    .mark-keep {
+      color: var(--muted);
+      box-shadow: inset 0 -1.5px 0 var(--line);
+      border-radius: 3px;
+      padding: 0 2px;
+      margin: 0 1px;
+    }
+    .chip-keep {
+      display: inline-flex; align-items: center; gap: 5px;
+      border: 1px dashed var(--line); background: transparent;
+      border-radius: 999px; padding: 2px 9px; font-size: 11px; color: var(--muted);
+    }
 
     .chip {
       display: inline-flex; align-items: center; gap: 6px;
@@ -391,7 +410,8 @@
       future: [],
       busy: false,
       _hits: [],
-      _hitIdx: -1
+      _hitIdx: -1,
+      _cancel: new Set()
     };
 
     const $ = (id) => document.getElementById(id);
@@ -807,7 +827,7 @@
       return pieces;
     }
 
-    function applyAll(text, rules) {
+    function applyAll(text, rules, cancelled = new Set()) {
       let pieces = [{ type: "eq", text, ruleId: null }];
       const logs = [];
       for (const rule of rules) {
@@ -822,18 +842,24 @@
         }
         rule._matchInfo = matches.length ? `命中 ${matches.length} 处` : "无匹配";
         if (!matches.length) continue;
-        matches = [...matches].sort((a, b) => b.start - a.start);
-        for (const m of matches) {
+        const asc = matches;
+        const sorted = [...asc].sort((a, b) => b.start - a.start);
+        for (const m of sorted) {
+          const seq = asc.indexOf(m);
+          const id = rule.id + "@" + seq;
           const to = computeReplacement(rule, m, current);
+          const cancelledEntry = cancelled.has(id);
           logs.push({
+            id,
             ruleId: rule.id,
             color: rule.color,
             action: rule.action,
             from: m.text,
             to,
-            keyword: m.keyword
+            keyword: m.keyword,
+            cancelled: cancelledEntry
           });
-          pieces = applyMatch(pieces, m, rule, to);
+          if (!cancelledEntry) pieces = applyMatch(pieces, m, rule, to);
         }
       }
       return { pieces, logs, result: liveText(pieces) };
@@ -885,23 +911,51 @@
       if (!rows.length) {
         return `<div class="h-full grid place-items-center" style="color:var(--muted)">没有发生替换</div>`;
       }
+      const skipped = rows.filter((l) => l.cancelled).length;
       return `<div class="preview-font" style="font-size:14px;line-height:1.6">
-        <div class="grid grid-cols-[56px_1fr_24px_1fr_72px] gap-2 text-[11px] mb-2" style="color:var(--muted)">
-          <span>规则</span><span>原文片段</span><span></span><span>结果</span><span>类型</span>
+        <div class="flex items-end justify-between gap-3 pb-2.5 mb-3 border-b" style="border-color:var(--line)">
+          <div class="flex items-baseline gap-2.5 min-w-0">
+            <span class="serif text-lg" style="color:var(--ink)">变更明细</span>
+            <span class="text-[11px] stat truncate" style="color:var(--muted)">生效 ${rows.length - skipped} 处 · 保留 ${skipped} 处</span>
+          </div>
+          ${skipped
+            ? `<button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="restoreAllLogs()">全部生效</button>`
+            : `<span class="text-[11px] flex-none" style="color:var(--muted)">点按开关 · 可单独保留某一处原文</span>`}
         </div>
-        ${rows.map((l, i) => {
+        <div class="grid grid-cols-[64px_1fr_24px_1fr_76px] gap-2 text-[11px] mb-1" style="color:var(--muted)">
+          <span>规则</span><span>原文片段</span><span></span><span>替换为</span><span class="text-center">生效</span>
+        </div>
+        ${rows.map((l) => {
           const idx = state.rules.findIndex((x) => x.id === l.ruleId) + 1;
-          const kind = l.action === "delete" || l.to === "" ? "删除" : "替换";
-          const color = kind === "删除" ? "var(--del)" : "var(--ins)";
-          return `<div class="grid grid-cols-[56px_1fr_24px_1fr_72px] gap-2 items-start py-2 border-b" style="border-color:var(--line)">
-            <span class="stat text-xs">#${idx}</span>
-            <span class="mark-del">${escapeHtml(clip(l.from, 80)) || "∅"}</span>
-            <span style="color:var(--muted)">→</span>
-            <span class="${l.to ? "mark-ins" : ""}">${escapeHtml(clip(l.to, 80)) || "∅"}</span>
-            <span class="text-xs" style="color:${color}">${kind}</span>
+          const r = state.rules.find((x) => x.id === l.ruleId);
+          const c = l.cancelled;
+          return `<div class="log-row grid grid-cols-[64px_1fr_24px_1fr_76px] gap-2 items-center py-2 border-b ${c ? "log-off" : ""}" style="border-color:var(--line)">
+            <span class="stat text-xs flex items-center gap-1.5" style="color:var(--muted)"><i style="width:7px;height:7px;border-radius:50%;background:${r ? r.color : "#999"};flex:none"></i>#${idx}</span>
+            <span class="${c ? "mark-keep" : "mark-del"}">${escapeHtml(clip(l.from, 80)) || "∅"}</span>
+            <span class="arrow" style="color:var(--muted)">→</span>
+            <span>${c
+              ? `<span class="chip-keep">保留原文</span>`
+              : `<span class="${l.to ? "mark-ins" : ""}">${escapeHtml(clip(l.to, 80)) || "∅"}</span>`}</span>
+            <span class="flex justify-center">
+              <button class="toggle mini ${c ? "" : "on"}" title="${c ? "恢复此处替换" : "此处保留原文"}" onclick="toggleLog('${l.id}', ${c})"><i></i></button>
+            </span>
           </div>`;
         }).join("")}
       </div>`;
+    }
+
+    function toggleLog(id, restore) {
+      const prev = $("preview");
+      const st = prev.scrollTop;
+      if (restore) state._cancel.delete(id); else state._cancel.add(id);
+      run();
+      prev.scrollTop = st;
+      toast(restore ? "已恢复该处替换" : "该处已保留原文");
+    }
+    function restoreAllLogs() {
+      state._cancel.clear();
+      run();
+      toast("已恢复全部替换");
     }
 
     function ruleTitle(r) {
@@ -923,7 +977,7 @@
       const st = countStats(text);
       $("sourceStats").textContent = `${st.chars} 字 · ${st.words} 词 · ${st.lines} 行`;
 
-      const { pieces, logs, result } = applyAll(text, state.rules);
+      const { pieces, logs, result } = applyAll(text, state.rules, state._cancel);
       state._result = result;
       state._pieces = pieces;
       state._logs = logs;
@@ -949,7 +1003,7 @@
 
       const del = pieces.filter((p) => p.type === "del").reduce((n, p) => n + p.text.length, 0);
       const ins = pieces.filter((p) => p.type === "ins").reduce((n, p) => n + p.text.length, 0);
-      const ops = logs.filter((l) => !l.error).length;
+      const ops = logs.filter((l) => !l.error && !l.cancelled).length;
       $("diffStats").innerHTML = `
         <span>生效 ${ops} 处</span>
         <span style="color:var(--del)">删除 ${del}</span>
@@ -959,7 +1013,7 @@
       const chips = $("changeChips");
       const byRule = {};
       logs.forEach((l) => {
-        if (l.error) return;
+        if (l.error || l.cancelled) return;
         if (!byRule[l.ruleId]) byRule[l.ruleId] = { n: 0, l };
         byRule[l.ruleId].n++;
       });
