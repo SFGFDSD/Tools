@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="theme-color" content="#0c0c0e" />
+  <title>炸字 · 大爆炸文字编辑</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --bg2: #141417;
+      --surface: #1c1c20;
+      --surface2: #25252b;
+      --line: rgba(255,255,255,.08);
+      --text: #f3efe6;
+      --muted: #8d8880;
+      --chip: #f3eee4;
+      --chip-ink: #1b1916;
+      --sel: #e25a32;
+      --sel2: #ff8a5c;
+      --accent: #e25a32;
+      --good: #3dbe7a;
+      --safe-t: env(safe-area-inset-top, 0px);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --kb: 0px;
+    }
+    html[data-theme="light"] {
+      --bg: #efeae1;
+      --bg2: #e7e0d4;
+      --surface: #f7f3eb;
+      --surface2: #fffdf8;
+      --line: rgba(30,24,16,.1);
+      --text: #1c1915;
+      --muted: #7a7368;
+      --chip: #fffdf8;
+      --chip-ink: #1c1915;
+      --sel: #d94b28;
+      --sel2: #ff7a4d;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: var(--bg); color: var(--text);
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: manipulation;
+      -webkit-text-size-adjust: 100%;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", system-ui, sans-serif;
+    }
+    #app {
+      position: fixed; left: 0; top: 0; width: 100%;
+      height: 100%;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 600px at 50% -10%, rgba(226,90,50,.12), transparent 50%),
+        var(--bg);
+    }
+    .scroll {
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
+    textarea, input {
+      font-size: 16px;
+      line-height: 1.7;
+      background: transparent;
+      color: var(--text);
+      border: 0;
+      outline: none;
+      resize: none;
+      width: 100%;
+      font-family: inherit;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+    textarea { caret-color: var(--accent); }
+    button { font-family: inherit; border: 0; background: none; color: inherit; padding: 0; cursor: pointer; }
+    .hair { height: 1px; background: var(--line); transform: scaleY(.5); }
+
+    .chip {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 36px; min-height: 40px;
+      padding: 8px 11px;
+      margin: 4px 3px;
+      border-radius: 10px;
+      background: var(--chip);
+      color: var(--chip-ink);
+      font-size: 16px; font-weight: 560;
+      box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 6px 14px rgba(0,0,0,.18);
+      user-select: none;
+      touch-action: none;
+      transition: background .12s ease, color .12s ease, transform .12s ease, box-shadow .12s ease;
+      will-change: transform;
+    }
+    .chip.punc {
+      min-width: 28px; padding: 8px 8px;
+      background: #2a2a30; color: #d7d1c6;
+      font-weight: 500; box-shadow: none;
+    }
+    html[data-theme="light"] .chip.punc { background: #ddd6ca; color: #5c564c; }
+    .chip.on {
+      background: linear-gradient(180deg, var(--sel2), var(--sel));
+      color: #fff;
+      box-shadow: 0 1px 0 rgba(255,255,255,.25) inset, 0 8px 16px rgba(226,90,50,.35);
+      transform: translateY(-1px);
+    }
+    .chip.punc.on { background: var(--sel); color: #fff; }
+
+    @keyframes boomIn {
+      0% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.35); }
+      100% { opacity: 1; transform: translate(0,0) scale(1); }
+    }
+    @keyframes boomOut {
+      0% { opacity: 1; transform: translate(0,0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.2); }
+    }
+    @keyframes pop {
+      0% { transform: scale(.92); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes flash {
+      0% { opacity: .7; transform: scale(.4); }
+      100% { opacity: 0; transform: scale(2.4); }
+    }
+    @keyframes toastIn {
+      0% { transform: translate(-50%, 12px); opacity: 0; }
+      100% { transform: translate(-50%, 0); opacity: 1; }
+    }
+    .boom-chip { animation: boomIn .32s cubic-bezier(.16,1,.3,1) both; }
+    .boom-chip.leaving { animation: boomOut .2s ease-in both; }
+
+    .md h1 { font-size: 1.55rem; font-weight: 700; margin: 1.1em 0 .4em; letter-spacing: -.02em; }
+    .md h2 { font-size: 1.28rem; font-weight: 680; margin: 1em 0 .35em; }
+    .md h3 { font-size: 1.08rem; font-weight: 650; margin: .9em 0 .3em; }
+    .md p { margin: .55em 0; }
+    .md blockquote {
+      margin: .7em 0; padding: .2em 0 .2em .8em;
+      border-left: 3px solid var(--accent); color: var(--muted);
+    }
+    .md code {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: .88em; background: var(--surface2); padding: .1em .35em; border-radius: 6px;
+    }
+    .md pre {
+      background: var(--surface2); padding: 12px 14px; border-radius: 12px; overflow: auto;
+      font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.55;
+    }
+    .md pre code { background: none; padding: 0; }
+    .md ul, .md ol { padding-left: 1.3em; margin: .5em 0; }
+    .md li { margin: .2em 0; }
+    .md a { color: var(--sel2); text-decoration: none; }
+    .md hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
+    .md table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .md th, .md td { border: 1px solid var(--line); padding: 6px 8px; }
+    .md img { max-width: 100%; border-radius: 10px; }
+
+    .icon-btn {
+      width: 40px; height: 40px; border-radius: 12px;
+      display: grid; place-items: center;
+    }
+    .icon-btn:active { background: var(--surface2); transform: scale(.96); }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 34px; padding: 0 12px; border-radius: 999px;
+      background: var(--surface2); color: var(--text); font-size: 13px;
+    }
+    .pill:active { transform: scale(.97); }
+    .fab-boom {
+      width: 58px; height: 58px; border-radius: 22px;
+      background: radial-gradient(circle at 30% 25%, #ffb089, #e25a32 46%, #b83318);
+      box-shadow: 0 10px 24px rgba(226,90,50,.4), 0 1px 0 rgba(255,255,255,.3) inset;
+      display: grid; place-items: center;
+      color: #fff;
+    }
+    .fab-boom:active { transform: scale(.94); }
+    .sheet {
+      position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
+      background: rgba(0,0,0,.45); z-index: 40;
+    }
+    .sheet-card {
+      background: var(--surface);
+      border-radius: 22px 22px 0 0;
+      padding: 10px 16px calc(16px + var(--safe-b));
+      max-height: 88%;
+      animation: pop .22s cubic-bezier(.16,1,.3,1);
+    }
+    .handle { width: 36px; height: 4px; border-radius: 4px; background: var(--line); margin: 4px auto 12px; }
+    .hidden { display: none !important; }
+    .note-card:active { transform: scale(.985); }
+    #toast {
+      position: absolute; left: 50%; bottom: calc(88px + var(--safe-b));
+      transform: translateX(-50%);
+      background: rgba(20,20,24,.92); color: #fff;
+      padding: 10px 16px; border-radius: 999px; font-size: 13px;
+      z-index: 80; pointer-events: none;
+      animation: toastIn .2s ease both;
+      box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    }
+    html[data-theme="light"] #toast { background: rgba(28,25,21,.92); }
+    .flash-ring {
+      position: absolute; width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid var(--sel2); pointer-events: none;
+      animation: flash .55s ease-out forwards;
+    }
+    .selbar {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(20,20,24,.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 6px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    html[data-theme="light"] .selbar { background: rgba(255,253,248,.92); }
+    .act {
+      min-width: 52px; height: 44px; border-radius: 12px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1px; font-size: 10px; color: var(--text);
+    }
+    .act:active { background: var(--surface2); }
+    .act svg { width: 18px; height: 18px; }
+    .cursor-track {
+      height: 28px; border-radius: 999px; background: var(--surface2);
+      position: relative; touch-action: none;
+    }
+    .cursor-track i {
+      position: absolute; top: 6px; width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent); left: 50%; transform: translateX(-50%);
+      box-shadow: 0 2px 8px rgba(226,90,50,.45);
+    }
+    .md .boomable { border-radius: 8px; }
+    .md .boomable:active { background: rgba(226,90,50,.12); }
+    .pick-p, #pickView {
+      -webkit-user-select: text; user-select: text;
+    }
+    #chips, #boom {
+      -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    }
+    .pick-p {
+      padding: 12px 2px; margin: 0;
+      white-space: pre-wrap; word-break: break-word;
+      border-radius: 10px; line-height: inherit;
+    }
+    .pick-p + .pick-p { margin-top: 2px; }
+    .pick-p:active { background: rgba(226,90,50,.14); }
+    .pick-hint {
+      font-size: 11px; color: var(--muted); letter-spacing: .08em;
+      padding: 0 2px 8px;
+    }
+    .kbd-row { display: flex; gap: 6px; overflow-x: auto; touch-action: pan-x; padding-bottom: 2px; }
+    .kbd-row::-webkit-scrollbar { display: none; }
+    .md-btn {
+      flex: 0 0 auto; height: 32px; padding: 0 10px; border-radius: 8px;
+      background: var(--surface2); font-size: 13px; color: var(--text);
+    }
+    .md-btn:active { transform: scale(.96); }
+    .switch {
+      width: 44px; height: 26px; border-radius: 999px; background: #3a3a42; position: relative;
+    }
+    .switch.on { background: var(--sel); }
+    .switch em {
+      position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+      background: #fff; transition: transform .18s ease;
+    }
+    .switch.on em { transform: translateX(18px); }
+    #guide { z-index: 70; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #5a564e; }
+    .dot.on { background: var(--sel); width: 16px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- HOME -->
+    <section id="home" class="flex flex-col h-full">
+      <header class="px-5 pt-[calc(var(--safe-t)+14px)] pb-3">
+        <div class="flex items-end justify-between">
+          <div>
+            <div class="text-[11px] tracking-[.28em] text-[var(--muted)]">BOOMTYPE</div>
+            <h1 class="text-[28px] font-semibold leading-none mt-1">炸字</h1>
+          </div>
+          <div class="flex gap-1">
+            <button class="icon-btn" id="btnTheme" aria-label="主题"></button>
+            <button class="icon-btn" id="btnSettings" aria-label="设置"></button>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <div class="flex-1 h-11 rounded-2xl bg-[var(--surface)] px-3 flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+            <input id="noteSearch" placeholder="搜索笔记" autocomplete="off" autocorrect="off" spellcheck="false" />
+          </div>
+          <button id="btnNew" class="h-11 px-4 rounded-2xl bg-[var(--accent)] text-white text-[14px] font-medium">新建</button>
+        </div>
+      </header>
+      <div id="noteList" class="scroll flex-1 px-5 pb-8"></div>
+    </section>
+
+    <!-- EDITOR -->
+    <section id="editor" class="hidden flex flex-col h-full">
+      <header class="px-3 pt-[calc(var(--safe-t)+6px)] pb-1 flex items-center gap-1">
+        <button class="icon-btn" id="btnBack" aria-label="返回"></button>
+        <input id="titleInput" class="flex-1 text-[17px] font-semibold bg-transparent" maxlength="80" placeholder="无标题" autocomplete="off" autocorrect="off" spellcheck="false" />
+        <button class="icon-btn" id="btnFind" aria-label="查找"></button>
+        <button class="icon-btn" id="btnMore" aria-label="更多"></button>
+      </header>
+      <div class="px-4 pb-1 flex items-center justify-between text-[11px] text-[var(--muted)]">
+        <span id="statLine">0 字</span>
+        <span id="saveState">已保存</span>
+      </div>
+
+      <div class="relative flex-1 min-h-0 mx-3 mb-1 rounded-[18px] bg-[var(--surface)] overflow-hidden">
+        <textarea id="ta" class="absolute inset-0 px-4 py-3 scroll" placeholder="写点什么。点中间爆炸按钮，或切换「选取」后点段落，文字会按词炸开。" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+        <div id="preview" class="hidden absolute inset-0 px-4 py-3 scroll md"></div>
+        <div id="pickView" class="hidden absolute inset-0 px-4 py-3 scroll"></div>
+      </div>
+
+      <div id="editTools" class="px-3 pt-1">
+        <div class="flex items-center gap-2 mb-1">
+          <button id="curL" class="icon-btn shrink-0" aria-label="左移"></button>
+          <div id="curTrack" class="cursor-track flex-1"><i id="curKnob"></i></div>
+          <button id="curR" class="icon-btn shrink-0" aria-label="右移"></button>
+        </div>
+        <div id="mdBar" class="kbd-row mb-1"></div>
+      </div>
+
+      <nav class="px-4 pt-1 pb-[calc(var(--safe-b)+8px)] flex items-end justify-between">
+        <button id="btnUndo" class="flex flex-col items-center gap-0.5 w-14 text-[10px] text-[var(--muted)]">
+          <span class="icon-btn" id="icoUndo"></span>撤销
+        </button>
+        <button id="btnRedo" class="flex flex-col items-center gap-0.5 w-14 text-[10px] text-[var(--muted)]">
+          <span class="icon-btn" id="icoRedo"></span>重做
+        </button>
+        <button id="btnBoom" class="fab-boom -mt-3" aria-label="大爆炸"></button>
+        <button id="btnPreview" class="flex flex-col items-center gap-0.5 w-14 text-[10px] text-[var(--muted)]">
+          <span class="icon-btn" id="icoEye"></span><span id="previewLab">预览</span>
+        </button>
+        <button id="btnMode" class="flex flex-col items-center gap-0.5 w-14 text-[10px] text-[var(--muted)]">
+          <span class="icon-btn" id="icoMode"></span><span id="modeLab">选取</span>
+        </button>
+      </nav>
+    </section>
+
+    <!-- BOOM OVERLAY -->
+    <section id="boom" class="hidden absolute inset-0 z-30 flex flex-col" style="background:rgba(8,8,10,.82);">
+      <div id="boomFlash" class="pointer-events-none absolute inset-0"></div>
+      <header class="px-3 pt-[calc(var(--safe-t)+8px)] pb-2 flex items-center gap-2">
+        <button id="boomClose" class="icon-btn" aria-label="关闭"></button>
+        <div class="flex-1 min-w-0">
+          <div class="text-[11px] text-[var(--muted)]" id="boomHint">点选 · 滑动连选 · 再点取消</div>
+          <div id="boomCompose" class="text-[15px] font-medium truncate min-h-[22px]"></div>
+        </div>
+        <div class="flex bg-[var(--surface)] rounded-full p-0.5 text-[12px]">
+          <button data-gran="word" class="gran px-2.5 h-7 rounded-full">词</button>
+          <button data-gran="char" class="gran px-2.5 h-7 rounded-full">字</button>
+          <button data-gran="sent" class="gran px-2.5 h-7 rounded-full">句</button>
+        </div>
+      </header>
+      <div id="boomScroll" class="scroll flex-1 px-2.5 pb-2">
+        <div id="selBarWrap" class="sticky top-0 z-10 hidden justify-center py-1">
+          <div class="selbar" id="selBar"></div>
+        </div>
+        <div id="chips" class="pt-1 pb-8"></div>
+      </div>
+      <footer class="px-3 pt-2 pb-[calc(var(--safe-b)+10px)] bg-gradient-to-t from-black/50 to-transparent">
+        <div class="flex gap-2 mb-2">
+          <button id="actAll" class="pill">全选</button>
+          <button id="actInv" class="pill">反选</button>
+          <button id="actClear" class="pill">清空</button>
+          <button id="actReboom" class="pill">再炸</button>
+        </div>
+        <div class="grid grid-cols-5 gap-1" id="boomActs"></div>
+      </footer>
+    </section>
+
+    <!-- SHEETS / MODALS -->
+    <div id="sheet" class="sheet hidden"></div>
+    <div id="guide" class="sheet hidden"></div>
+    <div id="toast" class="hidden"></div>
+  </div>
+
+  <script>
+  (() => {
+    const $ = (id) => document.getElementById(id);
+    const app = $('app');
+    const home = $('home');
+    const editor = $('editor');
+    const boom = $('boom');
+    const ta = $('ta');
+    const preview = $('preview');
+    const pickView = $('pickView');
+    const chipsEl = $('chips');
+    const boomScroll = $('boomScroll');
+
+    const ICONS = {
+      back: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>',
+      gear: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.7 1 1.1 1.7 1.2H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+      moon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>',
+      sun: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+      search: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>',
+      more: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>',
+      undo: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 1 1 0 12h-3"/></svg>',
+      redo: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 1 0 0 12h3"/></svg>',
+      eye: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+      hand: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 13V6a1.5 1.5 0 0 1 3 0v5M11 11V5a1.5 1.5 0 0 1 3 0v6M14 11V7a1.5 1.5 0 0 1 3 0v7c0 3-2 5-5.5 5S6 17 6 14v-2"/></svg>',
+      close: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+      boom: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.2 4.2L17 7l-3.2 2.2L15 14l-3-2.2L9 14l1.2-4.8L7 7l3.8-.8L12 3z"/><path d="M4 14l.8 2.2L7 17l-1.8 1.2L6 21l-2-1.4L2 21l.8-2.8L1 17l2.2-.8L4 14z"/><path d="M19 13l.7 1.8 1.8.5-1.5 1 .5 1.8-1.5-1-1.5 1 .5-1.8-1.5-1 1.8-.5L19 13z"/></svg>',
+      copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>',
+      share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="12" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="16" cy="18" r="2"/><path d="M8 11l6-4M8 13l6 4"/></svg>',
+      dict: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3 3V4z"/><path d="M9 8h6M9 12h6"/></svg>',
+      trans: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h8M8 6c0 7-4 10-4 10M12 6c-1 5-4 8-6 10"/><path d="M14 14l4 8 4-8"/><path d="M15.5 17h5"/></svg>',
+      write: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg>',
+      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg>',
+      ins: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>',
+      left: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 6l-6 6 6 6"/></svg>',
+      right: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 6l6 6-6 6"/></svg>'
+    };
+
+    const KEY = 'boomtype.v1';
+    const defaultSettings = {
+      theme: 'dark',
+      fontSize: 17,
+      lineHeight: 1.75,
+      font: 'sans',
+      haptic: true,
+      longPress: 420,
+      gran: 'word',
+      autoCorrect: false,
+      first: true
+    };
+
+    const WELCOME = `# 欢迎使用炸字
+
+这是为手机屏幕重新发明的文字编辑。
+
+锤子手机的「大爆炸」解决过一个真正的痛点：在手机上精确挑选一段话里的某几个词，本来就该像拆积木一样简单。
+
+## 怎么用
+
+1. 点底部「选取」，再点任意段落，文字按语义炸开
+2. 点选词语，或按住滑动连选
+3. 选好后可以复制、写回正文、剔除已选
+4. 中间橙色按钮可炸开当前段或全文
+5. 点「再炸」把已选词拆成单字；「句」模式先拆句再进词
+
+不要跟系统选区、放大镜、菜单较劲。该炸就炸。
+
+试试把下面这句话炸开，只留下你要的部分：
+
+北京的秋天很短，但香山的红叶、胡同里的糖炒栗子，和地铁里突然响起的报站声，会让人一下子想起很多旧事。`;
+
+    let db = load();
+    let currentId = null;
+    let composing = false;
+    let previewOn = false;
+    let pickMode = false;
+    let hist = [];
+    let histI = -1;
+    let saveTimer = 0;
+    let boomState = null;
+    let toastTimer = 0;
+    let lastCaret = 0;
+    let boomOrigin = { x: 0, y: 0 };
+    let lpTimer = 0;
+    let lpStart = null;
+
+    function load() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
+        if (raw && raw.notes) {
+          raw.settings = { ...defaultSettings, ...raw.settings };
+          return raw;
+        }
+      } catch (e) {}
+      const id = uid();
+      return {
+        settings: { ...defaultSettings },
+        notes: [{ id, title: '欢迎使用炸字', content: WELCOME, created: Date.now(), updated: Date.now() }]
+      };
+    }
+    function persist() {
+      try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { toast('存储已满'); }
+    }
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+    function haptic(ms) {
+      if (db.settings.haptic && navigator.vibrate) navigator.vibrate(ms || 12);
+    }
+    function toast(msg) {
+      const el = $('toast');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add('hidden'), 1600);
+    }
+
+    /* ========== Viewport lock: kill jump ========== */
+    function fit() {
+      const vv = window.visualViewport;
+      const h = vv ? Math.round(vv.height) : window.innerHeight;
+      const top = vv ? Math.round(vv.offsetTop) : 0;
+      app.style.height = h + 'px';
+      app.style.transform = top ? `translateY(${top}px)` : '';
+    }
+    window.addEventListener('resize', fit, { passive: true });
+    if (window.visualViewport) {
+      visualViewport.addEventListener('resize', fit, { passive: true });
+      visualViewport.addEventListener('scroll', fit, { passive: true });
+    }
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    document.addEventListener('dblclick', e => e.preventDefault());
+    document.addEventListener('touchmove', (e) => {
+      const t = e.target;
+      if (t.closest && t.closest('.scroll, textarea, input')) return;
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    fit();
+
+    /* ========== Segmenter (Big Bang heart) ========== */
+    const DICT_WORDS = `
+的 了 在 是 我 有 和 就 不 人 都 一 一个 上 也 很 到 说 要 去 你 会 着 没有 看 好 自己 这 那 里 后 么 为 什么 能 下 过 还 子 而 道 他们 我们 你们 她 他 它 把 被 让 比 跟 对 从 向 往 给 以 以及 或者 但是 然后 因为 所以 如果 虽然 而且 不过 于是 因此 不仅 并且 或者 还是 已经 正在 将要 可能 应该 需要 可以 不要 不是 不会 不能 只有 只要 就是 只是 还是 还没 没有 有些 一些 这个 那个 这些 那些 这里 那里 这样 那样 怎么 怎样 如何 为什么 什么 哪里 谁 多少 几 第一 其中 其他 其实 现在 今天 昨天 明天 今年 去年 时候 时间 以后 以前 之后 之前 同时 目前 最近 刚才 马上 立刻 突然 终于 一直 总是 经常 偶尔 从来 几乎 非常 十分 特别 比较 更加 最 太 真 挺 有点 一点 一下 一起 一样 一定 当然 也许 大概 似乎 好像 比如 例如 等等 首先 其次 最后 另外 此外 总之
+中国 北京 上海 广州 深圳 杭州 成都 重庆 武汉 南京 西安 天津 苏州 长沙 郑州 青岛 大连 厦门 香港 台湾 日本 美国 英国 法国 德国 韩国 城市 国家 世界 人民 社会 生活 工作 学习 学生 老师 学校 大学 公司 企业 政府 国家 问题 方法 方式 方面 情况 关系 作用 发展 经济 文化 历史 政治 科技 科学 技术 艺术 音乐 电影 电视 新闻 媒体 网络 互联网 电脑 手机 软件 应用 系统 数据 信息 内容 文字 语言 中文 英文 汉语 英语 句子 词语 词汇 意思 意义 知识 思想 心理 感觉 感情 爱情 朋友 家人 父亲 母亲 父母 孩子 儿子 女儿 先生 女士 大家 别人 个人 身体 眼睛 心里 手里
+可以 进行 通过 开始 结束 继续 停止 完成 实现 成为 出现 发生 发现 觉得 认为 知道 了解 明白 记得 忘记 希望 想要 喜欢 讨厌 害怕 担心 相信 支持 反对 选择 决定 准备 计划 安排 处理 解决 改变 提高 增加 减少 保持 使用 利用 采用 根据 按照 关于 对于 由于 作为 包括 除了 直到 随着 经过 达到 进入 出来 回来 过来 起来 下来 上去 进去 出去 过来 过去
+重要 主要 基本 一般 普通 特殊 特别 明显 清楚 简单 复杂 容易 困难 方便 麻烦 安全 危险 正常 异常 成功 失败 正确 错误 真实 虚假 美好 糟糕 快乐 痛苦 高兴 难过 开心 失望 满意 生气 紧张 放松 安静 热闹 干净 漂亮 美丽 可爱 年轻 古老 新鲜 陈旧 快速 缓慢 巨大 微小 许多 大量 少量 全部 部分 整个 单独 共同 公开 秘密 免费 收费
+编辑 文字 文本 内容 段落 文章 笔记 文档 标题 正文 复制 粘贴 剪切 删除 撤销 重做 搜索 替换 分享 保存 导出 导入 预览 设置 主题 夜间 白天 字体 字号 行距 光标 键盘 屏幕 手指 滑动 点选 长按 选中 取消 全选 反选 插入 写回 翻译 词典 分词 词语 单字 句子 标点 语义 智能 爆炸 大爆炸 锤子 手机 痛点 体验 交互 操作 精确 挑选 积木 系统 选区 放大镜 菜单 折磨
+秋天 冬天 春天 夏天 香山 红叶 胡同 糖炒栗子 地铁 报站 旧事 回忆 故事 声音 突然 想起 很短 但是 让人 一下子
+欢迎 使用 炸字 重新 发明 屏幕 解决 真正 本来 应该 简单 怎么 整段 按住 连选 选好 留下 部分 不想 时候
+Markdown 标记 加粗 斜体 代码 引用 列表 链接 图片 表格 待办 分割 一级 二级 三级
+今天天气 不错 我们 一起 出去 吃饭 电影 好看 这个 功能 非常 实用 谢谢 再见 请问 对不起 没关系 没问题 好的
+`.trim().split(/\s+/).filter(Boolean);
+
+    const dict = new Set(DICT_WORDS);
+    ['大爆炸','炸字','写回','再炸','点选','连选','分词','锤子手机','糖炒栗子','香山'].forEach(w => dict.add(w));
+    try {
+      (JSON.parse(localStorage.getItem(KEY + '.udict') || '[]') || []).forEach(w => dict.add(w));
+    } catch (e) {}
+
+    function isCJK(ch) {
+      const c = ch.charCodeAt(0);
+      return c >= 0x3400 && c <= 0x9FFF || c >= 0xF900 && c <= 0xFAFF;
+    }
+    function isPunc(ch) {
+      return /[，。！？、；：：“”‘’（）【】《》〈〉—…·,.!?;:()\[\]{}"'`~@#$%^&*_+=<>\/\\|-]/.test(ch);
+    }
+    function maxMatch(str, reverse) {
+      const out = [];
+      if (!reverse) {
+        let i = 0;
+        while (i < str.length) {
+          let found = null;
+          const max = Math.min(8, str.length - i);
+          for (let n = max; n >= 2; n--) {
+            const w = str.slice(i, i + n);
+            if (dict.has(w)) { found = w; break; }
+          }
+          if (found) { out.push(found); i += found.length; }
+          else { out.push(str[i]); i++; }
+        }
+      } else {
+        let i = str.length;
+        while (i > 0) {
+          let found = null;
+          const max = Math.min(8, i);
+          for (let n = max; n >= 2; n--) {
+            const w = str.slice(i - n, i);
+            if (dict.has(w)) { found = w; break; }
+          }
+          if (found) { out.unshift(found); i -= found.length; }
+          else { out.unshift(str[i - 1]); i--; }
+        }
+      }
+      return out;
+    }
+    function betterSeg(a, b) {
+      if (a.length !== b.length) return a.length < b.length ? a : b;
+      const sa = a.filter(x => x.length === 1 && isCJK(x)).length;
+      const sb = b.filter(x => x.length === 1 && isCJK(x)).length;
+      return sa <= sb ? a : b;
+    }
+    function splitCJK(str) {
+      const f = maxMatch(str, false);
+      const r = maxMatch(str, true);
+      return betterSeg(f, r);
+    }
+    function tokenize(text, gran) {
+      if (!text) return [];
+      if (gran === 'char') {
+        return [...text].map((t, i) => ({ t, i, punc: isPunc(t) || /\s/.test(t), space: /\s/.test(t) })).filter(x => !x.space);
+      }
+      if (gran === 'sent') {
+        const tokens = [];
+        const re = /[^。！？!?；;\n]+[。！？!?；;]?\n*/g;
+        let m;
+        while ((m = re.exec(text))) {
+          const raw = m[0];
+          const t = raw.replace(/\n/g, '').trim();
+          if (t) tokens.push({ t, i: m.index + raw.indexOf(t), punc: false });
+        }
+        if (!tokens.length && text.trim()) tokens.push({ t: text.trim(), i: text.search(/\S/), punc: false });
+        return tokens;
+      }
+      const tokens = [];
+      const re = /https?:\/\/[^\s]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|[A-Za-z]+(?:'[A-Za-z]+)?|\d+(?:\.\d+)?%?|[\u3400-\u9FFF]+|[^\s]/g;
+      let m;
+      while ((m = re.exec(text))) {
+        const raw = m[0];
+        const idx = m.index;
+        if (/^[\u3400-\u9FFF]+$/.test(raw)) {
+          const words = splitCJK(raw);
+          let off = 0;
+          for (const w of words) {
+            tokens.push({ t: w, i: idx + off, punc: false });
+            off += w.length;
+          }
+        } else {
+          tokens.push({ t: raw, i: idx, punc: isPunc(raw) && raw.length === 1 });
+        }
+      }
+      return tokens;
+    }
+
+    /* ========== Markdown ========== */
+    function esc(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function renderMD(src) {
+      const lines = src.replace(/\r/g, '').split('\n');
+      let html = '', inCode = false, codeBuf = [], listType = null;
+      const flushList = () => { if (listType) { html += listType === 'ol' ? '</ol>' : '</ul>'; listType = null; } };
+      const inline = (s) => {
+        s = esc(s);
+        s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+        s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+        s = s.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        return s;
+      };
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.startsWith('```')) {
+          if (inCode) { html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`; codeBuf = []; inCode = false; }
+          else { flushList(); inCode = true; }
+          continue;
+        }
+        if (inCode) { codeBuf.push(line); continue; }
+        if (/^\s*$/.test(line)) { flushList(); continue; }
+        if (/^---+$/.test(line.trim())) { flushList(); html += '<hr/>'; continue; }
+        const hm = /^(#{1,3})\s+(.*)$/.exec(line);
+        if (hm) { flushList(); const n = hm[1].length; html += `<h${n} class="boomable" data-raw="${esc(hm[2])}">${inline(hm[2])}</h${n}>`; continue; }
+        if (/^>\s?/.test(line)) { flushList(); html += `<blockquote class="boomable" data-raw="${esc(line.replace(/^>\s?/, ''))}">${inline(line.replace(/^>\s?/, ''))}</blockquote>`; continue; }
+        const ul = /^[-*]\s+(.*)$/.exec(line);
+        if (ul) {
+          if (listType !== 'ul') { flushList(); html += '<ul>'; listType = 'ul'; }
+          html += `<li class="boomable" data-raw="${esc(ul[1])}">${inline(ul[1])}</li>`; continue;
+        }
+        const ol = /^\d+\.\s+(.*)$/.exec(line);
+        if (ol) {
+          if (listType !== 'ol') { flushList(); html += '<ol>'; listType = 'ol'; }
+          html += `<li class="boomable" data-raw="${esc(ol[1])}">${inline(ol[1])}</li>`; continue;
+        }
+        flushList();
+        html += `<p class="boomable" data-raw="${esc(line)}">${inline(line)}</p>`;
+      }
+      flushList();
+      if (inCode) html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
+      return html || '<p class="text-[var(--muted)]">空空如也</p>';
+    }
+
+    /* ========== Notes ========== */
+    function countChars(s) { return (s || '').replace(/\s/g, '').length; }
+    function noteById(id) { return db.notes.find(n => n.id === id); }
+    function renderHome() {
+      const q = ($('noteSearch').value || '').trim().toLowerCase();
+      const list = db.notes
+        .slice()
+        .sort((a,b) => b.updated - a.updated)
+        .filter(n => !q || (n.title + n.content).toLowerCase().includes(q));
+      $('noteList').innerHTML = list.map(n => {
+        const preview = n.content.replace(/^#+\s*/gm, '').replace(/\s+/g, ' ').trim().slice(0, 72);
+        const d = new Date(n.updated);
+        const ds = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        return `<button class="note-card w-full text-left mb-3 p-4 rounded-[18px] bg-[var(--surface)]" data-id="${n.id}">
+          <div class="flex justify-between items-start gap-3">
+            <div class="font-semibold text-[16px] leading-snug">${esc(n.title || '无标题')}</div>
+            <div class="text-[11px] text-[var(--muted)] shrink-0">${ds}</div>
+          </div>
+          <div class="mt-1.5 text-[13px] text-[var(--muted)] leading-relaxed line-clamp-2">${esc(preview || '空白笔记')}</div>
+          <div class="mt-2 text-[11px] text-[var(--muted)]">${countChars(n.content)} 字</div>
+        </button>`;
+      }).join('') || '<div class="text-center text-[var(--muted)] pt-16">还没有笔记</div>';
+    }
+    function applyTheme() {
+      document.documentElement.setAttribute('data-theme', db.settings.theme === 'light' ? 'light' : 'dark');
+      $('btnTheme').innerHTML = db.settings.theme === 'light' ? ICONS.moon : ICONS.sun;
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', db.settings.theme === 'light' ? '#efeae1' : '#0c0c0e');
+    }
+    function applyEditorChrome() {
+      ta.style.fontSize = db.settings.fontSize + 'px';
+      ta.style.lineHeight = db.settings.lineHeight;
+      preview.style.fontSize = db.settings.fontSize + 'px';
+      preview.style.lineHeight = db.settings.lineHeight;
+      pickView.style.fontSize = db.settings.fontSize + 'px';
+      pickView.style.lineHeight = db.settings.lineHeight;
+      const fam = db.settings.font === 'serif'
+        ? '"Songti SC","Noto Serif SC",serif'
+        : db.settings.font === 'mono'
+          ? 'ui-monospace,Menlo,Consolas,monospace'
+          : '"PingFang SC","Hiragino Sans GB","Noto Sans SC",system-ui,sans-serif';
+      ta.style.fontFamily = fam;
+      preview.style.fontFamily = fam;
+      pickView.style.fontFamily = fam;
+      ta.setAttribute('autocorrect', db.settings.autoCorrect ? 'on' : 'off');
+      ta.spellcheck = !!db.settings.autoCorrect;
+    }
+
+    function openNote(id) {
+      const n = noteById(id);
+      if (!n) return;
+      currentId = id;
+      home.classList.add('hidden');
+      editor.classList.remove('hidden');
+      editor.classList.add('flex');
+      $('titleInput').value = n.title || '';
+      ta.value = n.content || '';
+      lastCaret = ta.value.length;
+      previewOn = false;
+      pickMode = false;
+      syncPreviewMode();
+      resetHist(n.content);
+      updateStat();
+      applyEditorChrome();
+      $('saveState').textContent = '已保存';
+    }
+    function newNote() {
+      const n = { id: uid(), title: '', content: '', created: Date.now(), updated: Date.now() };
+      db.notes.unshift(n); persist(); openNote(n.id);
+    }
+    function saveNow() {
+      const n = noteById(currentId);
+      if (!n) return;
+      n.content = ta.value;
+      n.title = $('titleInput').value.trim() || (n.content.split('\n').find(l => l.trim()) || '无标题').replace(/^#+\s*/, '').slice(0, 30);
+      if (!$('titleInput').value) $('titleInput').value = n.title === '无标题' ? '' : n.title;
+      n.updated = Date.now();
+      persist();
+      $('saveState').textContent = '已保存';
+    }
+    function scheduleSave() {
+      $('saveState').textContent = '保存中…';
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveNow, 380);
+    }
+    function updateStat() {
+      const t = ta.value;
+      const chars = countChars(t);
+      const words = tokenize(t, 'word').filter(x => !x.punc).length;
+      const lines = t ? t.split('\n').length : 0;
+      $('statLine').textContent = `${chars} 字 · ${words} 词 · ${lines} 行`;
+    }
+
+    function resetHist(v) { hist = [v]; histI = 0; }
+    function pushHist() {
+      const v = ta.value;
+      if (hist[histI] === v) return;
+      hist = hist.slice(0, histI + 1);
+      hist.push(v);
+      if (hist.length > 80) hist.shift();
+      histI = hist.length - 1;
+    }
+    function undo() {
+      if (histI <= 0) return;
+      histI--; ta.value = hist[histI]; scheduleSave(); updateStat();
+    }
+    function redo() {
+      if (histI >= hist.length - 1) return;
+      histI++; ta.value = hist[histI]; scheduleSave(); updateStat();
+    }
+
+    /* ========== Editor helpers ========== */
+    function caret() { return { s: ta.selectionStart || 0, e: ta.selectionEnd || 0 }; }
+    function setCaret(s, e) {
+      lastCaret = s;
+      try { ta.setSelectionRange(s, e == null ? s : e); } catch (err) {}
+    }
+    function insertAt(text, wrapSel) {
+      const { s, e } = caret();
+      const v = ta.value;
+      const sel = v.slice(s, e);
+      const put = wrapSel ? text[0] + sel + text[1] : text;
+      const scroll = ta.scrollTop;
+      ta.value = v.slice(0, s) + put + v.slice(e);
+      const ns = wrapSel ? s + text[0].length : s + put.length;
+      const ne = wrapSel ? ns + sel.length : ns;
+      setCaret(ns, ne);
+      ta.scrollTop = scroll;
+      pushHist(); scheduleSave(); updateStat();
+    }
+    function currentBlockRange() {
+      const v = ta.value;
+      const { s } = caret();
+      let a = v.lastIndexOf('\n', s - 1) + 1;
+      let b = v.indexOf('\n', s);
+      if (b < 0) b = v.length;
+      if (a === b) {
+        a = v.lastIndexOf('\n', a - 2) + 1;
+      }
+      return { a, b, text: v.slice(a, b) };
+    }
+    function selectedOrBlock() {
+      const { s, e } = caret();
+      if (e > s) return { a: s, b: e, text: ta.value.slice(s, e) };
+      return currentBlockRange();
+    }
+
+    function wrapMD(pre, post) { insertAt([pre, post == null ? pre : post], true); }
+    const MD_BTNS = [
+      ['# ', '', '#'], ['## ', '', '##'], ['**', '**', 'B'], ['*', '*', 'I'],
+      ['`', '`', '`'], ['> ', '', '引'], ['- ', '', '•'], ['1. ', '', '1.'],
+      ['- [ ] ', '', '☐'], ['```\n', '\n```', '{ }'], ['---\n', '', '—'],
+      ['[', '](https://)', '链']
+    ];
+    $('mdBar').innerHTML = MD_BTNS.map(([a,b,lab]) =>
+      `<button class="md-btn" data-a="${encodeURIComponent(a)}" data-b="${encodeURIComponent(b)}">${lab}</button>`
+    ).join('');
+
+    function renderPick() {
+      const v = ta.value;
+      const blocks = [];
+      let off = 0;
+      for (const p of v.split(/(\n+)/)) {
+        if (p && !/^\n+$/.test(p) && p.trim()) blocks.push({ a: off, b: off + p.length, text: p });
+        off += p.length;
+      }
+      pickView.innerHTML = (blocks.length
+        ? `<div class="pick-hint">点段落炸开 · 长按同样生效</div>` + blocks.map(b =>
+            `<div class="pick-p" data-a="${b.a}" data-b="${b.b}">${esc(b.text)}</div>`
+          ).join('')
+        : `<div class="text-[var(--muted)] pt-8 text-center">空白笔记，先切回输入写点字</div>`);
+    }
+    function syncPreviewMode() {
+      ta.classList.add('hidden');
+      preview.classList.add('hidden');
+      pickView.classList.add('hidden');
+      if (previewOn) {
+        preview.classList.remove('hidden');
+        preview.innerHTML = renderMD(ta.value);
+        $('previewLab').textContent = '编辑';
+      } else if (pickMode) {
+        pickView.classList.remove('hidden');
+        renderPick();
+        $('previewLab').textContent = '预览';
+      } else {
+        ta.classList.remove('hidden');
+        $('previewLab').textContent = '预览';
+      }
+      $('modeLab').textContent = pickMode ? '输入' : '选取';
+      $('editTools').style.display = (previewOn || pickMode) ? 'none' : '';
+    }
+
+    /* ========== Big Bang ========== */
+    function selectedTextFrom(tokens, selected) {
+      const idx = [...selected].sort((a,b)=>a-b);
+      if (!idx.length) return '';
+      if (idx.length === tokens.length) {
+        const start = tokens[0].i;
+        const last = tokens[tokens.length - 1];
+        return boomState.source.slice(start, last.i + last.t.length);
+      }
+      let out = '';
+      for (let k = 0; k < idx.length; k++) {
+        const i = idx[k];
+        const tok = tokens[i];
+        if (k === 0) out += tok.t;
+        else if (idx[k] === idx[k-1] + 1) {
+          const prev = tokens[idx[k-1]];
+          out += boomState.source.slice(prev.i + prev.t.length, tok.i + tok.t.length);
+        } else out += tok.t;
+      }
+      return out;
+    }
+    function updateCompose() {
+      if (!boomState) return;
+      const t = selectedTextFrom(boomState.tokens, boomState.selected);
+      $('boomCompose').textContent = t || '未选择';
+      $('boomCompose').classList.toggle('text-[var(--muted)]', !t);
+      $('selBarWrap').classList.toggle('hidden', boomState.selected.size === 0);
+      $('selBarWrap').classList.toggle('flex', boomState.selected.size > 0);
+      if (boomState.selected.size) renderSelBar();
+    }
+    function renderSelBar() {
+      $('selBar').innerHTML = [
+        ['copy','复制'],['write','写回'],['search','搜索'],['share','分享'],['trans','翻译']
+      ].map(([k,l]) => `<button class="act" data-quick="${k}">${ICONS[k] || ICONS.search}<span>${l}</span></button>`).join('');
+    }
+    function paintChips(animate) {
+      const { tokens, selected } = boomState;
+      const ox = boomOrigin.x, oy = boomOrigin.y;
+      chipsEl.innerHTML = tokens.map((tok, i) => {
+        const on = selected.has(i) ? 'on' : '';
+        const p = tok.punc ? 'punc' : '';
+        const delay = animate ? Math.min(i * 12, 180) : 0;
+        return `<span class="chip ${p} ${on} ${animate ? 'boom-chip' : ''}" data-i="${i}" style="animation-delay:${delay}ms;--dx:${(ox)}px;--dy:${(oy)}px">${esc(tok.t)}</span>`;
+      }).join('');
+      if (animate) {
+        requestAnimationFrame(() => {
+          const first = chipsEl.querySelector('.chip');
+          if (!first) return;
+          const r = first.getBoundingClientRect();
+          const dx = ox - (r.left + r.width / 2);
+          const dy = oy - (r.top + r.height / 2);
+          chipsEl.querySelectorAll('.chip').forEach((el, i) => {
+            const cr = el.getBoundingClientRect();
+            const x = ox - (cr.left + cr.width / 2);
+            const y = oy - (cr.top + cr.height / 2);
+            el.style.setProperty('--dx', x + 'px');
+            el.style.setProperty('--dy', y + 'px');
+            el.style.animationDelay = Math.min(Math.hypot(x, y) / 18, 160) + 'ms';
+          });
+        });
+      }
+      updateCompose();
+    }
+    function setChipOn(i, on) {
+      const el = chipsEl.querySelector(`[data-i="${i}"]`);
+      if (!el) return;
+      el.classList.toggle('on', on);
+      if (on) boomState.selected.add(i); else boomState.selected.delete(i);
+    }
+    function applyRange(from, to, on) {
+      const a = Math.min(from, to), b = Math.max(from, to);
+      for (let i = a; i <= b; i++) setChipOn(i, on);
+      updateCompose();
+    }
+
+    function openBoom(source, range, origin) {
+      if (!source || !source.trim()) { toast('没有可炸开的文字'); return; }
+      const ae = document.activeElement;
+      if (ae && (ae === ta || ae === $('titleInput'))) ae.blur();
+      boomOrigin = origin || { x: window.innerWidth / 2, y: window.innerHeight * .38 };
+      const flash = $('boomFlash');
+      flash.innerHTML = `<div class="flash-ring" style="left:${boomOrigin.x-14}px;top:${boomOrigin.y-14}px"></div>`;
+      haptic(18);
+      boomState = {
+        source,
+        range: range || { a: 0, b: source.length },
+        tokens: tokenize(source, db.settings.gran || 'word'),
+        selected: new Set(),
+        gran: db.settings.gran || 'word',
+        swipe: null
+      };
+      boom.classList.remove('hidden');
+      boom.classList.add('flex');
+      document.querySelectorAll('.gran').forEach(b => {
+        b.classList.toggle('bg-[var(--accent)]', b.dataset.gran === boomState.gran);
+        b.classList.toggle('text-white', b.dataset.gran === boomState.gran);
+      });
+      paintChips(true);
+      $('boomHint').textContent = boomState.gran === 'sent' ? '点句子进入词模式' : '点选 · 滑动连选 · 再点取消';
+    }
+    function closeBoom() {
+      if (!boomState) { boom.classList.add('hidden'); return; }
+      chipsEl.querySelectorAll('.chip').forEach(el => el.classList.add('leaving'));
+      const gone = boomState;
+      boomState = null;
+      setTimeout(() => {
+        boom.classList.add('hidden');
+        boom.classList.remove('flex');
+        chipsEl.innerHTML = '';
+      }, 180);
+    }
+    function boomFromEditor(origin) {
+      const n = noteById(currentId);
+      if (!n) return;
+      let range;
+      if (previewOn || pickMode) range = { a: 0, b: ta.value.length, text: ta.value };
+      else range = selectedOrBlock();
+      if (!range.text.trim()) range = { a: 0, b: ta.value.length, text: ta.value };
+      openBoom(range.text, { a: range.a, b: range.b }, origin);
+    }
+    function writeBack(mode) {
+      if (!boomState) return;
+      const { range, tokens, selected, source } = boomState;
+      let next;
+      if (mode === 'keep') next = selectedTextFrom(tokens, selected);
+      else if (mode === 'drop') {
+        const drop = selected;
+        const keep = new Set(tokens.map((_,i)=>i).filter(i => !drop.has(i)));
+        next = selectedTextFrom(tokens, keep);
+      } else next = selectedTextFrom(tokens, selected);
+      const v = ta.value;
+      const scroll = ta.scrollTop;
+      ta.value = v.slice(0, range.a) + next + v.slice(range.b);
+      setCaret(range.a + next.length);
+      ta.scrollTop = scroll;
+      pushHist(); scheduleSave(); updateStat();
+      if (previewOn) preview.innerHTML = renderMD(ta.value);
+      if (pickMode) renderPick();
+      closeBoom();
+      toast(mode === 'drop' ? '已删除所选' : '已写回正文');
+    }
+    function insertSelected() {
+      if (!boomState) return;
+      const t = selectedTextFrom(boomState.tokens, boomState.selected);
+      if (!t) { toast('先选词'); return; }
+      const pos = lastCaret || ta.value.length;
+      const v = ta.value;
+      ta.value = v.slice(0, pos) + t + v.slice(pos);
+      setCaret(pos + t.length);
+      pushHist(); scheduleSave(); updateStat();
+      if (pickMode) renderPick();
+      closeBoom();
+      toast('已插入');
+    }
+    async function copyText(t) {
+      if (!t) { toast('先选词'); return; }
+      try { await navigator.clipboard.writeText(t); toast('已复制'); }
+      catch (e) {
+        const x = document.createElement('textarea');
+        x.value = t; document.body.appendChild(x); x.select();
+        try { document.execCommand('copy'); toast('已复制'); } catch (e2) { toast('复制失败'); }
+        x.remove();
+      }
+    }
+    function shareText(t) {
+      if (!t) { toast('先选词'); return; }
+      if (navigator.share) navigator.share({ text: t }).catch(() => copyText(t));
+      else copyText(t);
+    }
+    function searchText(t, kind) {
+      if (!t) { toast('先选词'); return; }
+      const q = encodeURIComponent(t);
+      const map = {
+        search: `https://www.baidu.com/s?wd=${q}`,
+        google: `https://www.google.com/search?q=${q}`,
+        dict: `https://www.bing.com/dict/search?q=${q}`,
+        trans: `https://fanyi.baidu.com/#auto/zh/${q}`
+      };
+      window.open(map[kind] || map.search, '_blank', 'noopener');
+    }
+    function reboomSelected() {
+      if (!boomState || !boomState.selected.size) { toast('先选词再炸'); return; }
+      const idx = [...boomState.selected].sort((a,b)=>a-b);
+      const t = selectedTextFrom(boomState.tokens, boomState.selected);
+      const first = boomState.tokens[idx[0]];
+      const last = boomState.tokens[idx[idx.length - 1]];
+      const consecutive = idx.every((v, i) => i === 0 || v === idx[i - 1] + 1);
+      if (consecutive && first && last) {
+        const a = boomState.range.a + first.i;
+        boomState.range = { a, b: boomState.range.a + last.i + last.t.length };
+      }
+      boomState.source = t;
+      boomState.tokens = tokenize(t, 'char');
+      boomState.selected = new Set();
+      boomState.gran = 'char';
+      document.querySelectorAll('.gran').forEach(b => {
+        b.classList.toggle('bg-[var(--accent)]', b.dataset.gran === 'char');
+        b.classList.toggle('text-white', b.dataset.gran === 'char');
+      });
+      $('boomHint').textContent = '已拆到单字';
+      paintChips(true);
+      haptic(10);
+    }
+
+    const ACTS = [
+      ['copy','复制','copy'],
+      ['write','写回','write'],
+      ['trash','剔除','drop'],
+      ['ins','插入','ins'],
+      ['search','搜索','search'],
+      ['dict','词典','dict'],
+      ['trans','翻译','trans'],
+      ['share','分享','share']
+    ];
+    $('boomActs').innerHTML = ACTS.map(([ico, lab, k]) =>
+      `<button class="act bg-[var(--surface)]" data-act="${k}">${ICONS[ico]}<span>${lab}</span></button>`
+    ).join('');
+
+    function handleAct(k) {
+      if (!boomState) return;
+      const t = selectedTextFrom(boomState.tokens, boomState.selected);
+      if (k === 'copy') copyText(t);
+      else if (k === 'write') writeBack('keep');
+      else if (k === 'drop') writeBack('drop');
+      else if (k === 'ins') insertSelected();
+      else if (k === 'search') searchText(t, 'search');
+      else if (k === 'dict') searchText(t, 'dict');
+      else if (k === 'trans') searchText(t, 'trans');
+      else if (k === 'share') shareText(t);
+    }
+
+    /* swipe select like Smartisan SwipeSelectView */
+    function chipAt(x, y) {
+      const el = document.elementFromPoint(x, y);
+      const chip = el && el.closest ? el.closest('.chip') : null;
+      return chip ? +chip.dataset.i : -1;
+    }
+    function autoScrollBoom(y) {
+      const r = boomScroll.getBoundingClientRect();
+      if (y < r.top + 56) boomScroll.scrollTop -= 18;
+      else if (y > r.bottom - 24) boomScroll.scrollTop += 18;
+    }
+    chipsEl.addEventListener('touchstart', (e) => {
+      if (!boomState) return;
+      const t = e.changedTouches[0];
+      const i = chipAt(t.clientX, t.clientY);
+      if (i < 0) { boomState.swipe = null; return; }
+      const turnOn = !boomState.selected.has(i);
+      boomState.swipe = { start: i, last: i, on: turnOn, origin: new Set(boomState.selected) };
+      setChipOn(i, turnOn);
+      updateCompose();
+      haptic(8);
+    }, { passive: true });
+    chipsEl.addEventListener('touchmove', (e) => {
+      if (!boomState || !boomState.swipe) return;
+      const t = e.changedTouches[0];
+      autoScrollBoom(t.clientY);
+      const i = chipAt(t.clientX, t.clientY);
+      if (i < 0 || i === boomState.swipe.last) return;
+      boomState.swipe.last = i;
+      boomState.swiped = true;
+      const { start, on, origin } = boomState.swipe;
+      const a = Math.min(start, i), b = Math.max(start, i);
+      for (let k = 0; k < boomState.tokens.length; k++) {
+        setChipOn(k, (k >= a && k <= b) ? on : origin.has(k));
+      }
+      updateCompose();
+    }, { passive: true });
+    chipsEl.addEventListener('touchend', () => {
+      if (!boomState) return;
+      boomState.swipe = null;
+    });
+    chipsEl.addEventListener('click', (e) => {
+      if (!boomState) return;
+      if (boomState.swiped) { boomState.swiped = false; return; }
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      const i = +chip.dataset.i;
+      if (boomState.gran === 'sent') {
+        const tok = boomState.tokens[i];
+        const sent = tok.t;
+        const abs = (boomState.range ? boomState.range.a : 0) + tok.i;
+        boomState.source = sent;
+        boomState.range = { a: abs, b: abs + sent.length };
+        boomState.tokens = tokenize(sent, 'word');
+        boomState.selected = new Set();
+        boomState.gran = 'word';
+        document.querySelectorAll('.gran').forEach(b => {
+          b.classList.toggle('bg-[var(--accent)]', b.dataset.gran === 'word');
+          b.classList.toggle('text-white', b.dataset.gran === 'word');
+        });
+        $('boomHint').textContent = '点选 · 滑动连选 · 再点取消';
+        paintChips(true);
+        return;
+      }
+    });
+
+    /* long press in editor / preview */
+    function bindLongPress(el, getText) {
+      const start = (e) => {
+        if (pickMode === false && el === ta) return;
+        const p = e.touches ? e.touches[0] : e;
+        lpStart = { x: p.clientX, y: p.clientY, t: Date.now() };
+        clearTimeout(lpTimer);
+        lpTimer = setTimeout(() => {
+          const info = getText(p);
+          if (info && info.text && info.text.trim()) {
+            haptic(20);
+            openBoom(info.text, info.range, { x: p.clientX, y: p.clientY });
+          }
+        }, db.settings.longPress || 420);
+      };
+      const move = (e) => {
+        if (!lpStart) return;
+        const p = e.touches ? e.touches[0] : e;
+        if (Math.hypot(p.clientX - lpStart.x, p.clientY - lpStart.y) > 10) {
+          clearTimeout(lpTimer); lpStart = null;
+        }
+      };
+      const end = () => { clearTimeout(lpTimer); lpStart = null; };
+      el.addEventListener('touchstart', start, { passive: true });
+      el.addEventListener('touchmove', move, { passive: true });
+      el.addEventListener('touchend', end);
+      el.addEventListener('touchcancel', end);
+    }
+    bindLongPress(ta, () => {
+      const r = selectedOrBlock();
+      return { text: r.text, range: { a: r.a, b: r.b } };
+    });
+    bindLongPress(preview, (p) => {
+      const node = document.elementFromPoint(p.clientX, p.clientY);
+      const block = node && node.closest ? node.closest('.boomable') : null;
+      if (block && block.dataset.raw) {
+        const raw = block.dataset.raw;
+        const idx = ta.value.indexOf(raw);
+        return { text: raw, range: idx >= 0 ? { a: idx, b: idx + raw.length } : { a: 0, b: ta.value.length } };
+      }
+      return { text: ta.value, range: { a: 0, b: ta.value.length } };
+    });
+
+    /* cursor track */
+    let curRepeat = 0;
+    function moveCaret(d) {
+      const { s, e } = caret();
+      if (!previewOn) {
+        ta.focus({ preventScroll: true });
+        const n = Math.max(0, Math.min(ta.value.length, s + d));
+        setCaret(n);
+      }
+    }
+    function holdMove(btn, dir) {
+      btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        moveCaret(dir); haptic(6);
+        curRepeat = setInterval(() => moveCaret(dir), 70);
+      }, { passive: false });
+      ['touchend','touchcancel','mouseup','mouseleave'].forEach(ev =>
+        btn.addEventListener(ev, () => clearInterval(curRepeat)));
+    }
+    holdMove($('curL'), -1);
+    holdMove($('curR'), 1);
+    (function bindTrack() {
+      const track = $('curTrack');
+      let lastX = null, acc = 0;
+      track.addEventListener('touchstart', e => { lastX = e.touches[0].clientX; acc = 0; }, { passive: true });
+      track.addEventListener('touchmove', e => {
+        if (lastX == null) return;
+        const x = e.touches[0].clientX;
+        acc += x - lastX;
+        lastX = x;
+        const step = acc / 8;
+        if (Math.abs(step) >= 1) {
+          moveCaret(step > 0 ? Math.floor(step) : Math.ceil(step));
+          acc -= step * 8;
+        }
+      }, { passive: true });
+      track.addEventListener('touchend', () => { lastX = null; });
+    })();
+
+    /* sheets */
+    function closeSheet() { $('sheet').classList.add('hidden'); $('sheet').innerHTML = ''; }
+    function openSheet(html) {
+      $('sheet').innerHTML = `<div class="sheet-card">${html}</div>`;
+      $('sheet').classList.remove('hidden');
+    }
+    $('sheet').addEventListener('click', (e) => {
+      if (e.target === $('sheet')) closeSheet();
+    });
+
+    function openSettings() {
+      const s = db.settings;
+      openSheet(`
+        <div class="handle"></div>
+        <div class="text-[17px] font-semibold mb-3">设置</div>
+        ${rowToggle('haptic','触感反馈', s.haptic)}
+        ${rowToggle('autoCorrect','系统自动更正', s.autoCorrect)}
+        <div class="flex items-center justify-between py-3">
+          <div>字号 ${s.fontSize}</div>
+          <input id="sz" type="range" min="15" max="24" value="${s.fontSize}" class="w-36" />
+        </div>
+        <div class="flex items-center justify-between py-3">
+          <div>行距 ${s.lineHeight}</div>
+          <input id="lh" type="range" min="14" max="22" value="${Math.round(s.lineHeight*10)}" class="w-36" />
+        </div>
+        <div class="flex items-center justify-between py-3">
+          <div>字体</div>
+          <div class="flex gap-1">
+            ${['sans','serif','mono'].map(f => `<button class="pill set-font ${s.font===f?'bg-[var(--accent)] text-white':''}" data-f="${f}">${f==='sans'?'黑体':f==='serif'?'宋体':'等宽'}</button>`).join('')}
+          </div>
+        </div>
+        <div class="flex items-center justify-between py-3">
+          <div>长按触发</div>
+          <div class="text-[var(--muted)] text-[13px]">${s.longPress}ms</div>
+        </div>
+        <div class="text-[13px] text-[var(--muted)] leading-relaxed pt-2">
+          大爆炸交互复刻自 Smartisan OS Big Bang：按语义拆词、点选与滑动连选、选区写回。分词为本地双向最大匹配。
+        </div>
+      `);
+    }
+    function rowToggle(key, lab, on) {
+      return `<div class="flex items-center justify-between py-3">
+        <div>${lab}</div>
+        <button class="switch ${on?'on':''}" data-k="${key}"><em></em></button>
+      </div>`;
+    }
+    function openMore() {
+      openSheet(`
+        <div class="handle"></div>
+        <div class="text-[17px] font-semibold mb-2">笔记</div>
+        <button class="more-item w-full text-left py-3" data-m="dup">复制一份</button>
+        <button class="more-item w-full text-left py-3" data-m="export">导出 Markdown</button>
+        <button class="more-item w-full text-left py-3" data-m="exporttxt">导出纯文本</button>
+        <button class="more-item w-full text-left py-3" data-m="import">从剪贴板导入</button>
+        <button class="more-item w-full text-left py-3" data-m="boomall">全文大爆炸</button>
+        <button class="more-item w-full text-left py-3 text-[#ff6b4a]" data-m="del">删除笔记</button>
+      `);
+    }
+    function openFind() {
+      openSheet(`
+        <div class="handle"></div>
+        <div class="text-[17px] font-semibold mb-3">查找替换</div>
+        <input id="fQ" class="h-11 px-3 rounded-xl bg-[var(--bg2)] mb-2" placeholder="查找" />
+        <input id="fR" class="h-11 px-3 rounded-xl bg-[var(--bg2)] mb-3" placeholder="替换为" />
+        <div class="flex gap-2">
+          <button id="fNext" class="pill flex-1 justify-center h-10">下一个</button>
+          <button id="fOne" class="pill flex-1 justify-center h-10">替换</button>
+          <button id="fAll" class="pill flex-1 justify-center h-10 bg-[var(--accent)] text-white">全部</button>
+        </div>
+        <div id="fInfo" class="text-[12px] text-[var(--muted)] mt-2"></div>
+      `);
+    }
+
+    let findFrom = 0;
+    function findNext() {
+      const q = ($('fQ') || {}).value;
+      if (!q) return;
+      const v = ta.value;
+      let i = v.indexOf(q, findFrom);
+      if (i < 0) i = v.indexOf(q, 0);
+      if (i < 0) { $('fInfo').textContent = '未找到'; return; }
+      findFrom = i + q.length;
+      previewOn = false; syncPreviewMode();
+      ta.focus({ preventScroll: true });
+      setCaret(i, i + q.length);
+      const ratio = i / Math.max(1, v.length);
+      ta.scrollTop = ratio * (ta.scrollHeight - ta.clientHeight);
+      $('fInfo').textContent = `第 ${i} 处`;
+    }
+
+    /* guide */
+    function openGuide() {
+      const pages = [
+        { t: '把文字炸开', d: '像锤子大爆炸一样：一段话按语义拆成词块。点选、滑动连选，再也不会跟系统光标较劲。' },
+        { t: '选完就能改', d: '复制、写回正文、剔除已选、插入光标、搜索、翻译、分享。编辑发生在词的粒度上。' },
+        { t: '专为手机', d: '键盘弹起不乱跳，双击不放大，长按不弹系统菜单。光标条左右滑，比拽那个小蓝点舒服。' }
+      ];
+      let i = 0;
+      const draw = () => {
+        $('guide').innerHTML = `<div class="sheet-card">
+          <div class="handle"></div>
+          <div class="text-[22px] font-semibold">${pages[i].t}</div>
+          <p class="text-[15px] text-[var(--muted)] leading-relaxed mt-3 min-h-[88px]">${pages[i].d}</p>
+          <div class="flex items-center justify-between mt-4">
+            <div class="flex gap-1">${pages.map((_,k)=>`<i class="dot ${k===i?'on':''}"></i>`).join('')}</div>
+            <button id="gNext" class="h-10 px-5 rounded-full bg-[var(--accent)] text-white">${i===pages.length-1?'开始写':'下一步'}</button>
+          </div>
+        </div>`;
+        $('guide').classList.remove('hidden');
+        $('gNext').onclick = () => {
+          if (i < pages.length - 1) { i++; draw(); }
+          else { db.settings.first = false; persist(); $('guide').classList.add('hidden'); }
+        };
+      };
+      draw();
+    }
+
+    /* events */
+    $('btnTheme').innerHTML = ICONS.moon;
+    $('btnSettings').innerHTML = ICONS.gear;
+    $('btnBack').innerHTML = ICONS.back;
+    $('btnFind').innerHTML = ICONS.search;
+    $('btnMore').innerHTML = ICONS.more;
+    $('btnBoom').innerHTML = ICONS.boom;
+    $('boomClose').innerHTML = ICONS.close;
+    $('icoUndo').innerHTML = ICONS.undo;
+    $('icoRedo').innerHTML = ICONS.redo;
+    $('icoEye').innerHTML = ICONS.eye;
+    $('icoMode').innerHTML = ICONS.hand;
+    $('curL').innerHTML = ICONS.left;
+    $('curR').innerHTML = ICONS.right;
+
+    $('noteList').addEventListener('click', e => {
+      const card = e.target.closest('[data-id]');
+      if (card) openNote(card.dataset.id);
+    });
+    $('noteSearch').addEventListener('input', renderHome);
+    $('btnNew').onclick = newNote;
+    $('btnBack').onclick = () => { saveNow(); currentId = null; editor.classList.add('hidden'); home.classList.remove('hidden'); renderHome(); };
+    $('btnTheme').onclick = () => { db.settings.theme = db.settings.theme === 'light' ? 'dark' : 'light'; persist(); applyTheme(); };
+    $('btnSettings').onclick = openSettings;
+    $('btnMore').onclick = openMore;
+    $('btnFind').onclick = openFind;
+    $('btnUndo').onclick = undo;
+    $('btnRedo').onclick = redo;
+    $('btnPreview').onclick = () => { previewOn = !previewOn; if (previewOn) pickMode = false; syncPreviewMode(); };
+    $('btnMode').onclick = () => {
+      pickMode = !pickMode;
+      if (pickMode) { previewOn = false; ta.blur(); toast('选取模式：点段落即爆炸'); }
+      else toast('输入模式');
+      syncPreviewMode();
+    };
+    pickView.addEventListener('click', (e) => {
+      const p = e.target.closest('.pick-p');
+      if (!p) return;
+      const a = +p.dataset.a, b = +p.dataset.b;
+      const r = p.getBoundingClientRect();
+      openBoom(ta.value.slice(a, b), { a, b }, { x: e.clientX || (r.left + r.width / 2), y: e.clientY || (r.top + 20) });
+    });
+    $('btnBoom').onclick = (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      boomFromEditor({ x: r.left + r.width/2, y: r.top });
+    };
+    $('boomClose').onclick = closeBoom;
+    $('actAll').onclick = () => {
+      if (!boomState) return;
+      boomState.selected = new Set(boomState.tokens.map((_,i)=>i));
+      paintChips(false); haptic(8);
+    };
+    $('actInv').onclick = () => {
+      if (!boomState) return;
+      const n = new Set();
+      boomState.tokens.forEach((_,i) => { if (!boomState.selected.has(i)) n.add(i); });
+      boomState.selected = n; paintChips(false);
+    };
+    $('actClear').onclick = () => { if (!boomState) return; boomState.selected.clear(); paintChips(false); };
+    $('actReboom').onclick = reboomSelected;
+    $('boomActs').addEventListener('click', e => {
+      const b = e.target.closest('[data-act]');
+      if (b) handleAct(b.dataset.act);
+    });
+    $('selBarWrap').addEventListener('click', e => {
+      const b = e.target.closest('[data-quick]');
+      if (b) handleAct(b.dataset.quick);
+    });
+    document.querySelectorAll('.gran').forEach(btn => {
+      btn.onclick = () => {
+        if (!boomState) return;
+        boomState.gran = btn.dataset.gran;
+        db.settings.gran = boomState.gran; persist();
+        boomState.tokens = tokenize(boomState.source, boomState.gran);
+        boomState.selected = new Set();
+        document.querySelectorAll('.gran').forEach(b => {
+          b.classList.toggle('bg-[var(--accent)]', b.dataset.gran === boomState.gran);
+          b.classList.toggle('text-white', b.dataset.gran === boomState.gran);
+        });
+        $('boomHint').textContent = boomState.gran === 'sent' ? '点句子进入词模式' : '点选 · 滑动连选 · 再点取消';
+        paintChips(true);
+      };
+    });
+
+    $('mdBar').addEventListener('click', e => {
+      const b = e.target.closest('.md-btn');
+      if (!b) return;
+      wrapMD(decodeURIComponent(b.dataset.a), decodeURIComponent(b.dataset.b));
+      ta.focus({ preventScroll: true });
+    });
+
+    ta.addEventListener('compositionstart', () => composing = true);
+    ta.addEventListener('compositionend', () => { composing = false; pushHist(); scheduleSave(); updateStat(); });
+    ta.addEventListener('input', () => {
+      if (composing) return;
+      scheduleSave(); updateStat();
+    });
+    ta.addEventListener('change', pushHist);
+    ta.addEventListener('blur', () => { lastCaret = ta.selectionStart || lastCaret; pushHist(); });
+    ta.addEventListener('keyup', () => { lastCaret = ta.selectionStart || lastCaret; });
+    ta.addEventListener('click', () => { lastCaret = ta.selectionStart || lastCaret; });
+    $('titleInput').addEventListener('input', scheduleSave);
+
+    $('sheet').addEventListener('click', async (e) => {
+      const sw = e.target.closest('.switch');
+      if (sw) {
+        const k = sw.dataset.k;
+        db.settings[k] = !db.settings[k];
+        sw.classList.toggle('on', db.settings[k]);
+        persist(); applyEditorChrome();
+        return;
+      }
+      const f = e.target.closest('.set-font');
+      if (f) { db.settings.font = f.dataset.f; persist(); applyEditorChrome(); openSettings(); return; }
+      if (e.target.id === 'sz') return;
+      if (e.target.id === 'lh') return;
+      const m = e.target.closest('[data-m]');
+      if (m) {
+        const k = m.dataset.m;
+        const n = noteById(currentId);
+        if (k === 'dup' && n) {
+          const c = { ...n, id: uid(), title: (n.title || '无标题') + ' 副本', created: Date.now(), updated: Date.now() };
+          db.notes.unshift(c); persist(); closeSheet(); openNote(c.id); toast('已复制');
+        } else if (k === 'export' && n) {
+          download((n.title || 'note') + '.md', n.content || ta.value); closeSheet();
+        } else if (k === 'exporttxt' && n) {
+          download((n.title || 'note') + '.txt', n.content || ta.value); closeSheet();
+        } else if (k === 'import') {
+          try {
+            const t = await navigator.clipboard.readText();
+            if (t) { ta.value = (ta.value ? ta.value + '\n\n' : '') + t; pushHist(); scheduleSave(); updateStat(); toast('已导入'); }
+          } catch (err) { toast('无法读取剪贴板'); }
+          closeSheet();
+        } else if (k === 'boomall') {
+          closeSheet();
+          openBoom(ta.value, { a: 0, b: ta.value.length }, { x: innerWidth/2, y: innerHeight*.35 });
+        } else if (k === 'del' && n) {
+          db.notes = db.notes.filter(x => x.id !== n.id);
+          persist(); closeSheet(); $('btnBack').click(); toast('已删除');
+        }
+      }
+      if (e.target.id === 'fNext') findNext();
+      if (e.target.id === 'fOne') {
+        const q = $('fQ').value, r = $('fR').value;
+        if (!q) return;
+        const { s, e: en } = caret();
+        if (ta.value.slice(s, en) === q) {
+          insertAt(r, false); findNext();
+        } else findNext();
+      }
+      if (e.target.id === 'fAll') {
+        const q = $('fQ').value, r = $('fR').value;
+        if (!q) return;
+        const c = ta.value.split(q).length - 1;
+        ta.value = ta.value.split(q).join(r);
+        pushHist(); scheduleSave(); updateStat();
+        $('fInfo').textContent = `已替换 ${c} 处`;
+      }
+    });
+    $('sheet').addEventListener('input', (e) => {
+      if (e.target.id === 'sz') { db.settings.fontSize = +e.target.value; persist(); applyEditorChrome(); }
+      if (e.target.id === 'lh') { db.settings.lineHeight = (+e.target.value)/10; persist(); applyEditorChrome(); }
+    });
+
+    function download(name, text) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+      a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 500);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); boomFromEditor(); }
+    });
+
+    applyTheme();
+    applyEditorChrome();
+    renderHome();
+    if (db.settings.first) openGuide();
+  })();
+  </script>
+</body>
+</html>
