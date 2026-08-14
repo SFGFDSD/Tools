@@ -3,437 +3,582 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="theme-color" content="#ece3ce">
   <title>JISHENG OS · 工具箱</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg-gradient: linear-gradient(145deg, #0f172a 0%, #1e293b 45%, #0b1120 100%);
-      --glass-bg: rgba(255, 255, 255, 0.08);
-      --glass-border: rgba(255, 255, 255, 0.18);
-      --glass-shadow: 0 20px 35px rgba(0, 0, 0, 0.5);
-      --text-primary: #f1f5f9;
-      --text-secondary: #cbd5e1;
-      --accent: #a78bfa;
-      --accent-soft: #c4b5fd;
-      --cyan: #67e8f9;
-      --card-hover-bg: rgba(255, 255, 255, 0.14);
-      --radius-xl: 2.5rem;
-      --radius-lg: 2rem;
-      --radius-md: 1.5rem;
-      --radius-sm: 1rem;
+      --paper: #ece3ce;
+      --paper-hi: #f6efdd;
+      --ink: #221b10;
+      --ink-soft: rgba(33, 26, 16, .62);
+      --card-text: #efe7d2;
+      --card-dim: #b6aa8e;
+      --frame-hi: rgba(239, 231, 210, .16);
+      --cinnabar: #b0342a;
+      --cinnabar-soft: #e2a08c;
+      --serif: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+      --brush: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', 'Noto Serif SC', serif;
     }
 
+    ::selection { background: rgba(176, 52, 42, .28); }
+
+    html { scroll-behavior: smooth; }
+
     body {
-      font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-      background: var(--bg-gradient);
+      font-family: var(--serif);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 2rem 1.5rem;
-      color: var(--text-primary);
-      backdrop-filter: blur(2px);
+      padding: 3.2rem 1.5rem 2.4rem;
+      color: var(--ink);
       line-height: 1.5;
+      background:
+        radial-gradient(1100px 640px at 50% -8%, rgba(255, 252, 240, .75), transparent 62%),
+        radial-gradient(900px 520px at 88% 112%, rgba(122, 100, 58, .20), transparent 60%),
+        radial-gradient(760px 460px at 6% 96%, rgba(122, 100, 58, .14), transparent 55%),
+        var(--paper);
     }
 
-    /* 主容器 */
-    .main-container {
-      width: 100%;
-      max-width: 1300px;
-      margin: 0 auto;
+    /* ── 宣纸肌理：帘纹、纤维颗粒、四周晕染 ── */
+    .laid, .grain, .vign, .watermark { position: fixed; pointer-events: none; z-index: 0; }
+    .laid {
+      inset: 0;
+      background: repeating-linear-gradient(to bottom,
+        rgba(84, 68, 44, .05) 0px, rgba(84, 68, 44, .05) 1px,
+        transparent 1px, transparent 24px);
+    }
+    .grain {
+      inset: 0;
+      opacity: .07;
+      mix-blend-mode: multiply;
+      background-size: 140px 140px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23p)'/%3E%3C/svg%3E");
+    }
+    .vign {
+      inset: 0;
+      background: radial-gradient(125% 92% at 50% 6%, transparent 55%, rgba(94, 78, 50, .18) 100%);
+    }
+    .watermark {
+      top: -5%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--brush);
+      font-size: min(44vw, 540px);
+      line-height: 1;
+      color: rgba(33, 26, 16, .05);
+      user-select: none;
     }
 
-    /* 头部 */
-    .header {
-      text-align: center;
-      margin-bottom: 3.5rem;
-      position: relative;
+    /* ── 两侧竖排题款 ── */
+    .inscr, .side-en {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      writing-mode: vertical-rl;
+      pointer-events: none;
+      z-index: 1;
     }
+    .inscr {
+      right: 2.1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.1rem;
+    }
+    .inscr-text {
+      font-size: .95rem;
+      letter-spacing: .58em;
+      color: rgba(33, 26, 16, .34);
+    }
+    .inscr-dot {
+      width: 9px; height: 9px;
+      border-radius: 2px;
+      background: var(--cinnabar);
+      opacity: .55;
+      transform: rotate(45deg);
+    }
+    .side-en {
+      left: 2.2rem;
+      font-size: .66rem;
+      letter-spacing: .52em;
+      text-transform: uppercase;
+      color: rgba(33, 26, 16, .30);
+    }
+
+    /* ── 主容器 ── */
+    .main-container { width: 100%; max-width: 1240px; margin: 0 auto; position: relative; z-index: 1; }
+
+    /* ── 头部 ── */
+    .header { text-align: center; margin-bottom: 1rem; position: relative; }
 
     .logo-badge {
       display: inline-flex;
       align-items: center;
-      gap: 0.6rem;
-      background: rgba(167, 139, 250, 0.12);
-      border: 1px solid rgba(167, 139, 250, 0.35);
-      padding: 0.5rem 1.4rem;
-      border-radius: 100px;
-      backdrop-filter: blur(12px);
-      margin-bottom: 1.5rem;
+      gap: .55rem;
+      background: rgba(30, 24, 14, .9);
+      color: #ede4cd;
+      padding: .52rem 1.3rem;
+      border-radius: 999px;
+      font-size: .86rem;
       font-weight: 500;
-      letter-spacing: 0.3px;
-      color: #ddd6fe;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      letter-spacing: .22em;
+      box-shadow: 0 4px 14px rgba(33, 26, 16, .22), inset 0 0 0 1px rgba(237, 228, 205, .15);
     }
+    .logo-badge svg { width: 15px; height: 15px; flex: none; }
 
-    .logo-badge span {
-      font-size: 1.3rem;
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.15rem;
+      margin-top: 1.5rem;
     }
-
     h1 {
-      font-size: clamp(2.5rem, 8vw, 4.5rem);
+      font-family: var(--brush);
+      font-weight: 400;
+      font-size: clamp(2.8rem, 7vw, 4.8rem);
+      letter-spacing: .06em;
+      color: #1d1710;
+      text-shadow: 0 0 1px rgba(33, 26, 16, .35);
+    }
+    .seal {
+      display: inline-block;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
       font-weight: 700;
-      letter-spacing: -0.02em;
-      background: linear-gradient(135deg, #f8fafc 20%, #c4b5fd 70%, #a5f3fc);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      margin-bottom: 0.75rem;
-      text-shadow: 0 0 25px rgba(167, 139, 250, 0.25);
+      font-size: 1rem;
+      letter-spacing: .3em;
+      padding: .62rem .42rem .5rem;
+      color: #f7f0df;
+      background: linear-gradient(160deg, #bf4437 0%, #a03024 55%, #8c2419 100%);
+      border-radius: 7px;
+      box-shadow:
+        inset 0 0 0 1.5px rgba(247, 240, 223, .4),
+        inset 0 0 12px rgba(60, 10, 5, .35),
+        0 8px 18px rgba(140, 36, 25, .35);
+      transform: rotate(-2.5deg);
+      text-shadow: 0 1px 1px rgba(60, 10, 5, .4);
+      margin-bottom: .8rem;
+      user-select: none;
     }
 
     .subtitle {
-      font-size: 1.2rem;
-      color: var(--text-secondary);
-      max-width: 550px;
-      margin: 0 auto 1rem;
-      font-weight: 400;
-      backdrop-filter: blur(4px);
+      margin-top: .9rem;
+      font-size: 1.02rem;
+      letter-spacing: .14em;
+      color: rgba(33, 26, 16, .6);
     }
 
-    .header-divider {
-      width: 80px;
-      height: 4px;
-      background: linear-gradient(90deg, #a78bfa, #67e8f9);
-      border-radius: 10px;
-      margin: 1.5rem auto 0;
-      opacity: 0.8;
-    }
+    .brush { display: block; margin: 1.5rem auto 0; }
 
-    /* 工具网格 */
+    /* ── 清单题头 ── */
+    .list-head { display: flex; align-items: center; justify-content: center; gap: 1.1rem; margin: 3.1rem 0 1.9rem; }
+    .lh-line { height: 1px; width: min(170px, 18vw); background: linear-gradient(90deg, transparent, rgba(33, 26, 16, .45)); }
+    .lh-line.r { background: linear-gradient(90deg, rgba(33, 26, 16, .45), transparent); }
+    .lh-text { font-size: .86rem; letter-spacing: .5em; text-indent: .5em; color: rgba(33, 26, 16, .62); white-space: nowrap; }
+
+    /* ── 工具网格 ── */
     .tools-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 1.8rem;
-      margin-top: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+      gap: 1.7rem;
     }
 
-    /* 卡片样式 */
+    /* ── 墨色窗框卡片 ── */
     .tool-card {
-      background: var(--glass-bg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--radius-md);
-      box-shadow: var(--glass-shadow);
-      padding: 1.8rem 1.5rem;
+      position: relative;
       display: flex;
       flex-direction: column;
-      transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1);
-      cursor: pointer;
+      min-height: 212px;
+      padding: 1.6rem 1.45rem 1.35rem;
+      border-radius: 10px;
+      background: linear-gradient(155deg, #28221a 0%, #1b1610 58%, #131009 100%);
+      border: 1px solid #14100a;
+      box-shadow:
+        inset 0 1px 0 rgba(244, 236, 220, .08),
+        0 12px 26px -12px rgba(35, 27, 14, .55),
+        0 2px 6px rgba(35, 27, 14, .16);
       text-decoration: none;
-      color: var(--text-primary);
-      position: relative;
-      overflow: hidden;
-      min-height: 190px;
+      color: var(--card-text);
+      cursor: pointer;
+      transition: transform .35s cubic-bezier(.2, .9, .3, 1), box-shadow .35s ease;
+      animation: rise .6s cubic-bezier(.22, .9, .32, 1) both;
+      animation-delay: calc(140ms + var(--i, 0) * 42ms);
     }
-
+    /* 内层窗格细线 */
     .tool-card::before {
       content: "";
       position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 0% 20%, rgba(167, 139, 250, 0.15), transparent 70%);
-      opacity: 0;
-      transition: opacity 0.35s ease;
+      inset: 8px;
+      border: 1px solid var(--frame-hi);
+      border-radius: 6px;
       pointer-events: none;
-      border-radius: inherit;
+      transition: border-color .3s ease;
     }
-
+    /* 外层墨色窗框 */
+    .tool-card::after {
+      content: "";
+      position: absolute;
+      inset: -6px;
+      border: 1px solid rgba(33, 26, 16, .42);
+      border-radius: 14px;
+      pointer-events: none;
+      transition: inset .3s ease, border-color .3s ease;
+    }
     .tool-card:hover {
-      background: var(--card-hover-bg);
-      border-color: rgba(255, 255, 255, 0.35);
       transform: translateY(-6px);
-      box-shadow: 0 28px 45px rgba(0, 0, 0, 0.6);
+      box-shadow:
+        inset 0 1px 0 rgba(244, 236, 220, .1),
+        0 30px 50px -18px rgba(35, 27, 14, .6),
+        0 6px 14px rgba(35, 27, 14, .18);
+    }
+    .tool-card:hover::before { border-color: rgba(239, 231, 210, .26); }
+    .tool-card:hover::after { inset: -8px; border-color: rgba(33, 26, 16, .7); }
+    .tool-card:active { transform: translateY(-2px) scale(.995); }
+    .tool-card:focus-visible { outline: 2px solid var(--cinnabar); outline-offset: 6px; }
+
+    /* 窗棂角标 */
+    .corner { position: absolute; width: 13px; height: 13px; pointer-events: none; transition: border-color .3s ease; }
+    .c-tl { top: 3px; left: 3px; border-top: 1.5px solid rgba(239, 231, 210, .38); border-left: 1.5px solid rgba(239, 231, 210, .38); border-top-left-radius: 5px; }
+    .c-tr { top: 3px; right: 3px; border-top: 1.5px solid rgba(239, 231, 210, .38); border-right: 1.5px solid rgba(239, 231, 210, .38); border-top-right-radius: 5px; }
+    .c-bl { bottom: 3px; left: 3px; border-bottom: 1.5px solid rgba(239, 231, 210, .38); border-left: 1.5px solid rgba(239, 231, 210, .38); border-bottom-left-radius: 5px; }
+    .c-br { bottom: 3px; right: 3px; border-bottom: 1.5px solid rgba(239, 231, 210, .38); border-right: 1.5px solid rgba(239, 231, 210, .38); border-bottom-right-radius: 5px; }
+    .tool-card:hover .corner { border-color: rgba(239, 231, 210, .62); }
+
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.1rem; }
+
+    .icon-box {
+      width: 46px; height: 46px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(239, 231, 210, .3);
+      border-radius: 7px;
+      color: #e8dfc9;
+      transition: background .3s ease, color .3s ease, border-color .3s ease, transform .3s ease, box-shadow .3s ease;
+    }
+    .icon-box svg { width: 24px; height: 24px; }
+    .tool-card:hover .icon-box {
+      background: var(--cinnabar);
+      border-color: #c8483c;
+      color: #f8f2e2;
+      transform: rotate(-5deg) scale(1.05);
+      box-shadow: 0 6px 16px rgba(176, 52, 42, .4);
     }
 
-    .tool-card:hover::before {
-      opacity: 1;
+    .idx {
+      font-size: .8rem;
+      letter-spacing: .08em;
+      padding: .14rem .5rem;
+      border: 1px solid rgba(239, 231, 210, .16);
+      border-radius: 4px;
+      color: rgba(239, 231, 210, .38);
+      transition: color .3s ease, border-color .3s ease;
     }
-
-    .card-icon {
-      font-size: 2.4rem;
-      margin-bottom: 1.2rem;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.3));
-    }
+    .tool-card:hover .idx { color: var(--cinnabar-soft); border-color: rgba(226, 124, 100, .45); }
 
     .tool-card h3 {
-      font-size: 1.45rem;
+      font-size: 1.26rem;
       font-weight: 600;
-      margin-bottom: 0.6rem;
-      letter-spacing: -0.01em;
-      color: #f8fafc;
-      position: relative;
-      z-index: 2;
+      letter-spacing: .03em;
+      color: #f0e8d5;
+      margin-bottom: .55rem;
     }
-
     .tool-card p {
-      font-size: 0.9rem;
-      color: #cbd5e1;
-      line-height: 1.5;
-      margin-bottom: 1.4rem;
+      font-size: .9rem;
+      line-height: 1.68;
+      color: var(--card-dim);
+      margin-bottom: 1.3rem;
       flex: 1;
-      position: relative;
-      z-index: 2;
-      opacity: 0.85;
     }
 
     .tool-footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 0.8rem;
-      color: #a5b4fc;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-      position: relative;
-      z-index: 2;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      padding-top: 0.9rem;
-      margin-top: auto;
+      border-top: 1px solid rgba(239, 231, 210, .12);
+      padding-top: .85rem;
+    }
+    .tag {
+      font-size: .72rem;
+      letter-spacing: .2em;
+      text-indent: .2em;
+      padding: .3rem .75rem;
+      border: 1px solid rgba(239, 231, 210, .26);
+      border-radius: 999px;
+      color: #cfc4aa;
+      transition: color .3s ease, border-color .3s ease;
+    }
+    .tool-card:hover .tag { color: var(--cinnabar-soft); border-color: rgba(226, 124, 100, .5); }
+
+    .open-arrow { display: inline-flex; color: rgba(239, 231, 210, .55); transition: transform .25s ease, color .25s ease; }
+    .open-arrow svg { width: 18px; height: 18px; }
+    .tool-card:hover .open-arrow { transform: translate(3px, -3px); color: var(--cinnabar-soft); }
+
+    /* ── 页脚 ── */
+    .page-foot { margin-top: 3.8rem; text-align: center; }
+    .foot-mark { display: flex; align-items: center; justify-content: center; gap: .8rem; margin-bottom: 1rem; }
+    .foot-line { width: 56px; height: 1px; background: rgba(33, 26, 16, .3); }
+    .page-foot p { font-size: .84rem; letter-spacing: .24em; color: rgba(33, 26, 16, .55); }
+
+    .noscript-note {
+      margin: 2rem auto 0;
+      max-width: 520px;
+      text-align: center;
+      padding: 1.4rem 1.6rem;
+      border: 1px solid rgba(33, 26, 16, .4);
+      background: rgba(33, 26, 16, .06);
+      color: rgba(33, 26, 16, .75);
+      font-size: .95rem;
+      letter-spacing: .08em;
+      border-radius: 8px;
     }
 
-    .tool-footer .tag {
-      background: rgba(167, 139, 250, 0.15);
-      padding: 0.25rem 0.8rem;
-      border-radius: 30px;
-      font-size: 0.7rem;
-      color: #ddd6fe;
-      border: 1px solid rgba(167, 139, 250, 0.3);
+    /* ── 入场动画 ── */
+    @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+    @keyframes sealIn { from { opacity: 0; transform: rotate(-8deg) scale(.5); } to { opacity: 1; transform: rotate(-2.5deg) scale(1); } }
+    .anim { animation: fadeDown .6s cubic-bezier(.22, .9, .32, 1) both; }
+    .a1 { animation-delay: .05s; } .a2 { animation-delay: .12s; }
+    .a3 { animation-delay: .2s; } .a4 { animation-delay: .28s; }
+    .seal { animation: sealIn .55s .45s cubic-bezier(.3, 1.4, .5, 1) both; }
+
+    /* ── 响应式 ── */
+    @media (max-width: 1280px) {
+      .inscr, .side-en { display: none; }
     }
-
-    .open-arrow {
-      transition: transform 0.2s ease;
-      font-size: 1.1rem;
-    }
-
-    .tool-card:hover .open-arrow {
-      transform: translateX(4px);
-    }
-
-    /* 特定卡片颜色点缀 */
-    .tool-card:nth-child(1) .card-icon { color: #fcd34d; }
-    .tool-card:nth-child(2) .card-icon { color: #a5b4fc; }
-    .tool-card:nth-child(3) .card-icon { color: #6ee7b7; }
-    .tool-card:nth-child(4) .card-icon { color: #f0abfc; }
-    .tool-card:nth-child(5) .card-icon { color: #67e8f9; }
-    .tool-card:nth-child(6) .card-icon { color: #fda4af; }
-    .tool-card:nth-child(7) .card-icon { color: #c4b5fd; }
-    .tool-card:nth-child(8) .card-icon { color: #86efac; }
-    .tool-card:nth-child(9) .card-icon { color: #fbbf24; }
-    .tool-card:nth-child(10) .card-icon { color: #38bdf8; }
-    .tool-card:nth-child(11) .card-icon { color: #fb923c; }
-    .tool-card:nth-child(12) .card-icon { color: #e879f9; }
-    .tool-card:nth-child(13) .card-icon { color: #a3e635; }
-    .tool-card:nth-child(14) .card-icon { color: #f472b6; }
-
-    /* 响应式 */
     @media (max-width: 700px) {
-      body {
-        padding: 1.5rem 1rem;
-      }
-      .tools-grid {
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 1.2rem;
-      }
-      .tool-card {
-        padding: 1.4rem 1.2rem;
-        min-height: 170px;
-      }
-      h1 {
-        font-size: 2.6rem;
-      }
+      body { padding: 2rem 1rem 1.8rem; }
+      .tools-grid { grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 1.25rem; }
+      .tool-card { padding: 1.35rem 1.2rem 1.15rem; min-height: 196px; }
+      .title-row { gap: .8rem; }
+      .seal { font-size: .85rem; padding: .5rem .34rem .4rem; }
+      .list-head { margin: 2.4rem 0 1.5rem; }
     }
-
-    @media (max-width: 480px) {
-      .tools-grid {
-        grid-template-columns: 1fr;
-      }
-      .tool-card {
-        min-height: auto;
-      }
+    @media (max-width: 460px) {
+      .tools-grid { grid-template-columns: 1fr; }
+      .tool-card { min-height: auto; }
     }
-
-    /* 装饰性浮动粒子 */
-    .bg-decoration {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: -1;
-      background: radial-gradient(circle at 10% 20%, rgba(167, 139, 250, 0.12) 0%, transparent 30%),
-                  radial-gradient(circle at 90% 80%, rgba(103, 232, 249, 0.12) 0%, transparent 30%);
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
     }
   </style>
 </head>
 <body>
-  <div class="bg-decoration"></div>
+  <div class="laid" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vign" aria-hidden="true"></div>
+  <div class="watermark" aria-hidden="true">器</div>
+
+  <aside class="inscr" aria-hidden="true">
+    <span class="inscr-text">工欲善其事 · 必先利其器</span>
+    <span class="inscr-dot"></span>
+  </aside>
+  <aside class="side-en" aria-hidden="true">JISHENG OS · TOOLBOX COLLECTION</aside>
+
   <div class="main-container">
     <!-- 头部 -->
     <header class="header">
-      <div class="logo-badge">
-        <span>🧰</span> JISHENG OS · 应用集
+      <div class="logo-badge anim a1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2.5" y="8" width="19" height="12" rx="2"/>
+          <path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <path d="M2.5 13.5h19"/>
+          <rect x="9.8" y="12" width="4.4" height="3" rx=".8"/>
+        </svg>
+        JISHENG OS · 应用集
       </div>
-      <h1>万能超级工具箱</h1>
-      <p class="subtitle">一站式访问所有实用网页工具，点击卡片立即使用</p>
-      <div class="header-divider"></div>
+      <div class="title-row anim a2">
+        <h1>万能超级工具箱</h1>
+        <span class="seal" aria-hidden="true">利其器</span>
+      </div>
+      <p class="subtitle anim a3">一站式访问所有实用网页工具 · 点击卡片立即使用</p>
+      <svg class="brush anim a4" viewBox="0 0 240 16" width="240" height="16" aria-hidden="true">
+        <path d="M6 9.5C40 5.5 78 4.5 120 5.5c46 1 82 1.5 112-2" fill="none" stroke="#221b10" stroke-width="3.2" stroke-linecap="round" opacity=".78"/>
+        <path d="M18 12.5c30-2.5 62-3 96-2.6" fill="none" stroke="#221b10" stroke-width="1.4" stroke-linecap="round" opacity=".26"/>
+        <rect x="228" y="4" width="7" height="7" rx="1.5" transform="rotate(45 231.5 7.5)" fill="#b0342a"/>
+      </svg>
     </header>
+
+    <!-- 清单题头 -->
+    <div class="list-head">
+      <span class="lh-line"></span>
+      <span class="lh-text">器物清单 · 共<span id="toolCount">十五</span>器</span>
+      <span class="lh-line r"></span>
+    </div>
 
     <!-- 工具网格 -->
     <div class="tools-grid" id="toolsGrid">
-      <!-- 所有工具卡片将通过 JS 动态生成，保证链接最新 -->
+      <!-- 所有工具卡片由 JS 动态生成，链接指向同目录文件 -->
     </div>
+
+    <!-- 页脚 -->
+    <footer class="page-foot">
+      <div class="foot-mark" aria-hidden="true">
+        <span class="foot-line"></span>
+        <svg width="9" height="9" viewBox="0 0 10 10"><rect x="1.6" y="1.6" width="6.8" height="6.8" rx="1" transform="rotate(45 5 5)" fill="#b0342a"/></svg>
+        <span class="foot-line"></span>
+      </div>
+      <p>JISHENG OS · 工欲善其事 必先利其器</p>
+    </footer>
   </div>
 
-  <script>
-    (function() {
-      // 工具数据源 —— 严格对应仓库文件名称 (全部为 .html 文件)
-      const tools = [
-        {
-          name: "Markdown 编辑器",
-          file: "Markdown 编辑器.html",
-          description: "沉浸式 Markdown 书写与实时预览，极简优雅。",
-          icon: "📝",
-          tag: "写作"
-        },
-        {
-          name: "README.md 生成器",
-          file: "README.md",
-          description: "智能创建项目 README，开发文档一键生成。",
-          icon: "📄",
-          tag: "开发"
-        },
-        {
-          name: "ZIP 时区修正",
-          file: "ZIP时区修正.html",
-          description: "批量修正 ZIP 内文件时区，高效准确。",
-          icon: "🗂️",
-          tag: "文件处理"
-        },
-        {
-          name: "JISHENG 首页",
-          file: "index.html",
-          description: "主入口页面，快速导航至所有资源。",
-          icon: "🏠",
-          tag: "导航"
-        },
-        {
-          name: "万能超级工具箱",
-          file: "万能超级工具箱.html",
-          description: "集成多种实用小工具，一站式解决杂项需求。",
-          icon: "🧰",
-          tag: "合集"
-        },
-        {
-          name: "世界上最好的文字替换工具",
-          file: "世界上最好的文字替换工具.html",
-          description: "强大文字替换引擎，支持正则与批量处理。",
-          icon: "🔁",
-          tag: "文本"
-        },
-        {
-          name: "差异对比工具",
-          file: "差异对比工具.html",
-          description: "高亮显示文本/代码差异，快速审阅变更。",
-          icon: "⚖️",
-          tag: "对比"
-        },
-        {
-          name: "年度加薪申请系统",
-          file: "年度加薪申请系统.html",
-          description: "自动生成规范加薪申请，助力职场沟通。",
-          icon: "💼",
-          tag: "职场"
-        },
-        {
-          name: "收藏夹对比同步工具",
-          file: "收藏夹对比同步工具.html",
-          description: "跨浏览器书签对比，同步去重一步到位。",
-          icon: "⭐",
-          tag: "同步"
-        },
-        {
-          name: "文章多版本对比评审",
-          file: "文章多版本对比评审.html",
-          description: "多版本内容并行评审，注释与建议清晰。",
-          icon: "🔍",
-          tag: "审阅"
-        },
-        {
-          name: "断发令",
-          file: "断发令.html",
-          description: "创意决策小工具，帮你果断断舍离。",
-          icon: "✂️",
-          tag: "趣味"
-        },
-        {
-          name: "条漫阅",
-          file: "条漫阅.html",
-          description: "垂直漫画阅读器，流畅条漫体验。",
-          icon: "📖",
-          tag: "阅读"
-        },
-        {
-          name: "移动端文字编辑",
-          file: "移动端文字编辑.html",
-          description: "专为触屏优化的文字编辑面板，简洁顺手。",
-          icon: "📱",
-          tag: "移动"
-        },
-        {
-          name: "豪华时钟",
-          file: "豪华时钟.html",
-          description: "高颜值全屏时钟，多种主题与闹钟提醒。",
-          icon: "🕒",
-          tag: "时钟"
-        }
-      ];
-
-      const grid = document.getElementById('toolsGrid');
-
-      // 清空并动态生成卡片，确保链接正确指向相对路径
-      function renderTools() {
-        grid.innerHTML = ''; 
-        tools.forEach(tool => {
-          const card = document.createElement('a');
-          card.className = 'tool-card';
-          card.href = tool.file;  // 相对路径直接打开同目录文件
-          card.setAttribute('aria-label', tool.name);
-          
-          // 内部结构
-          card.innerHTML = `
-            <div class="card-icon">${tool.icon}</div>
-            <h3>${tool.name}</h3>
-            <p>${tool.description}</p>
-            <div class="tool-footer">
-              <span class="tag">${tool.tag}</span>
-              <span class="open-arrow">↗</span>
-            </div>
-          `;
-          
-          grid.appendChild(card);
-        });
-      }
-
-      renderTools();
-    })();
-  </script>
-
-  <!-- 简单回退：如果JS加载失败依然能看到静态提示，但已确保大部分环境动态生成 -->
   <noscript>
-    <div style="text-align:center; padding:2rem; color:#cbd5e1; background:rgba(255,255,255,0.05); border-radius:1.5rem;">
-      ⚡ 请启用 JavaScript 以查看完整的工具卡片导航。
+    <div class="noscript-note">
+      「 请启用 JavaScript 以查看完整的工具卡片导航 」
     </div>
   </noscript>
+
+  <script>
+  (function () {
+    // 墨线图标：统一描边风格
+    function SVG(inner) {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + '</svg>';
+    }
+
+    var ARROW = SVG('<path d="M7 17 17 7"/><path d="M9 7h8v8"/>');
+
+    // 工具数据源 —— 严格对应仓库文件名称
+    var tools = [
+      {
+        name: "Markdown 编辑器",
+        file: "Markdown 编辑器.html",
+        description: "沉浸式 Markdown 书写与实时预览，极简优雅。",
+        tag: "写作",
+        icon: SVG('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>')
+      },
+      {
+        name: "README.md 生成器",
+        file: "README.md",
+        description: "智能创建项目 README，开发文档一键生成。",
+        tag: "开发",
+        icon: SVG('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M15 2v5h5"/><path d="M8.5 13h7"/><path d="M8.5 17h4.5"/>')
+      },
+      {
+        name: "ZIP 时区修正",
+        file: "ZIP时区修正.html",
+        description: "批量修正 ZIP 内文件时区，高效准确。",
+        tag: "文件处理",
+        icon: SVG('<rect x="2.5" y="3.5" width="19" height="5" rx="1"/><path d="M4.5 8.5V19a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8.5"/><circle cx="12" cy="14.5" r="3.2"/><path d="M12 13v1.5l1.2 1"/>')
+      },
+      {
+        name: "JISHENG 首页",
+        file: "index.html",
+        description: "主入口页面，快速导航至所有资源。",
+        tag: "导航",
+        icon: SVG('<path d="m3 10.5 9-7.5 9 7.5"/><path d="M5 9v12h14V9"/><path d="M9.5 21v-6h5v6"/>')
+      },
+      {
+        name: "万能超级工具箱",
+        file: "万能超级工具箱.html",
+        description: "集成多种实用小工具，一站式解决杂项需求。",
+        tag: "合集",
+        icon: SVG('<rect x="2.5" y="8" width="19" height="12" rx="2"/><path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M2.5 13.5h19"/><rect x="9.8" y="12" width="4.4" height="3" rx=".8"/>')
+      },
+      {
+        name: "世界上最好的文字替换工具",
+        file: "世界上最好的文字替换工具.html",
+        description: "强大文字替换引擎，支持正则与批量处理。",
+        tag: "文本",
+        icon: SVG('<path d="M4 7.5h13"/><path d="m14 4 3.5 3.5L14 11"/><path d="M20 16.5H7"/><path d="m10 13-3.5 3.5L10 20"/>')
+      },
+      {
+        name: "差异对比工具",
+        file: "差异对比工具.html",
+        description: "高亮显示文本/代码差异，快速审阅变更。",
+        tag: "对比",
+        icon: SVG('<rect x="3" y="3.5" width="7.5" height="17" rx="1.2"/><rect x="13.5" y="3.5" width="7.5" height="17" rx="1.2"/><path d="M5.5 8h2.5"/><path d="M5.5 12h2.5"/><path d="M16 8h2.5"/><path d="M16 15.5h2.5"/>')
+      },
+      {
+        name: "年度加薪申请系统",
+        file: "年度加薪申请系统.html",
+        description: "自动生成规范加薪申请，助力职场沟通。",
+        tag: "职场",
+        icon: SVG('<rect x="3" y="7.5" width="18" height="13" rx="2"/><path d="M8.5 7.5V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2"/><path d="M12 17v-5.5"/><path d="m9.7 13.8 2.3-2.3 2.3 2.3"/>')
+      },
+      {
+        name: "收藏夹对比同步工具",
+        file: "收藏夹对比同步工具.html",
+        description: "跨浏览器书签对比，同步去重一步到位。",
+        tag: "同步",
+        icon: SVG('<path d="M6.5 3h11a1 1 0 0 1 1 1v17.5l-6.5-4.2-6.5 4.2V4a1 1 0 0 1 1-1Z"/><path d="M9 8.6h5.2"/><path d="m12.4 6.4 2.2 2.2-2.2 2.2"/><path d="M15 13.2H9.8"/><path d="m11.6 11-2.2 2.2 2.2 2.2"/>')
+      },
+      {
+        name: "文章多版本对比评审",
+        file: "文章多版本对比评审.html",
+        description: "多版本内容并行评审，注释与建议清晰。",
+        tag: "审阅",
+        icon: SVG('<rect x="3.5" y="7.5" width="13" height="14" rx="1.5"/><path d="M7.5 7.5V4A1.5 1.5 0 0 1 9 2.5h9A1.5 1.5 0 0 1 19.5 4v11A1.5 1.5 0 0 1 18 16.5h-1.5"/><circle cx="10" cy="13.5" r="2.4"/><path d="m11.8 15.3 2 2"/>')
+      },
+      {
+        name: "断发令",
+        file: "断发令.html",
+        description: "创意决策小工具，帮你果断断舍离。",
+        tag: "趣味",
+        icon: SVG('<circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M20 4 8.2 15.8"/><path d="M14.5 14.5 20 20"/><path d="M8.2 8.2 12 12"/>')
+      },
+      {
+        name: "条漫阅",
+        file: "条漫阅.html",
+        description: "垂直漫画阅读器，流畅条漫体验。",
+        tag: "阅读",
+        icon: SVG('<rect x="6" y="2.5" width="12" height="19" rx="1.5"/><rect x="8.5" y="5.5" width="7" height="4.8" rx=".8"/><rect x="8.5" y="12.3" width="7" height="4.8" rx=".8"/><path d="M8.5 19.3h4"/>')
+      },
+      {
+        name: "移动端文字编辑",
+        file: "移动端文字编辑.html",
+        description: "专为触屏优化的文字编辑面板，简洁顺手。",
+        tag: "移动",
+        icon: SVG('<rect x="6.5" y="2.5" width="11" height="19" rx="2"/><path d="M9.5 7h5"/><path d="M9.5 10.5h5"/><path d="M9.5 14v3.2"/><path d="M10 18.8h4"/>')
+      },
+      {
+        name: "炸字移动端文字编辑",
+        file: "炸字移动端文字编辑.html",
+        description: "大爆炸式拆字重组，移动端触屏优化的创意文字编辑。",
+        tag: "移动",
+        icon: SVG('<text x="12" y="15.8" text-anchor="middle" font-size="10.5" fill="currentColor" stroke="none" style="font-family:\'Noto Serif SC\',serif;font-weight:600">字</text><path d="M12 1.8v2.6"/><path d="M12 19.6v2.6"/><path d="M1.8 12h2.6"/><path d="M19.6 12h2.6"/><path d="m4.7 4.7 1.8 1.8"/><path d="m17.5 17.5 1.8 1.8"/><path d="m19.3 4.7-1.8 1.8"/><path d="m6.5 17.5-1.8 1.8"/>')
+      },
+      {
+        name: "豪华时钟",
+        file: "豪华时钟.html",
+        description: "高颜值全屏时钟，多种主题与闹钟提醒。",
+        tag: "时钟",
+        icon: SVG('<circle cx="12" cy="12" r="8"/><path d="M12 7.2v4.8l3.4 2"/><path d="M12 1.6v1.6"/><path d="M12 20.8v1.6"/><path d="M1.6 12h1.6"/><path d="M20.8 12h1.6"/>')
+      }
+    ];
+
+    var NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
+               "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十"];
+
+    var grid = document.getElementById("toolsGrid");
+    var countEl = document.getElementById("toolCount");
+    if (countEl) countEl.textContent = NUM[tools.length - 1] || String(tools.length);
+
+    tools.forEach(function (tool, i) {
+      var card = document.createElement("a");
+      card.className = "tool-card";
+      card.href = tool.file; // 相对路径直接打开同目录文件
+      card.setAttribute("aria-label", tool.name);
+      card.style.setProperty("--i", i);
+      card.innerHTML =
+        '<i class="corner c-tl"></i><i class="corner c-tr"></i><i class="corner c-bl"></i><i class="corner c-br"></i>' +
+        '<div class="card-top">' +
+          '<span class="icon-box">' + tool.icon + '</span>' +
+          '<span class="idx">' + (NUM[i] || (i + 1)) + '</span>' +
+        '</div>' +
+        '<h3>' + tool.name + '</h3>' +
+        '<p>' + tool.description + '</p>' +
+        '<div class="tool-footer">' +
+          '<span class="tag">' + tool.tag + '</span>' +
+          '<span class="open-arrow">' + ARROW + '</span>' +
+        '</div>';
+      grid.appendChild(card);
+    });
+  })();
+  </script>
 </body>
 </html>
