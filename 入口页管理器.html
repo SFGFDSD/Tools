@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JISHENG OS · 入口页管理器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  ::selection { background: rgba(255,255,255,.14); }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #000; color: #e8e6e3; line-height: 1.5;
+    padding: 2.6rem 1.4rem 4rem;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  header.top { text-align: center; margin-bottom: 2.2rem; }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(1.9rem, 4vw, 2.9rem); font-weight: 700; letter-spacing: -0.03em; }
+  .sub { margin-top: .6rem; color: #8a8a87; font-size: .9rem; font-weight: 300; letter-spacing: .04em; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 14px; align-items: start; }
+  @media (max-width: 1020px) { .cols { grid-template-columns: 1fr; } }
+
+  .card {
+    background: #0a0a0a; border: 1px solid #1a1a1a; padding: 1.4rem 1.4rem 1.5rem;
+    margin-bottom: 14px;
+  }
+  .card h2 {
+    font-family: 'Space Grotesk', sans-serif; font-size: 1.02rem; font-weight: 600;
+    letter-spacing: .01em; margin-bottom: 1rem; display: flex; align-items: center; gap: .6rem;
+  }
+  .count {
+    font-size: .74rem; font-weight: 500; color: #9a9a97; border: 1px solid #262626;
+    border-radius: 999px; padding: .05rem .55rem; letter-spacing: .05em;
+  }
+  .hint { font-size: .76rem; color: #6a6a68; font-weight: 300; margin-top: .8rem; line-height: 1.7; }
+
+  /* 导入区 */
+  .dropzone {
+    border: 1px dashed #2c2c2a; padding: 1.6rem 1rem; text-align: center; cursor: pointer;
+    color: #7a7a78; font-size: .86rem; transition: all .3s cubic-bezier(0.16,1,0.3,1);
+    background: #050505;
+  }
+  .dropzone:hover, .dropzone.over { border-color: #4a4a48; color: #c0c0bd; background: #0d0d0d; }
+  .dropzone svg { width: 22px; height: 22px; display: block; margin: 0 auto .6rem; }
+  .import-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: .8rem; }
+  .status { margin-top: .9rem; font-size: .8rem; color: #6a6a68; letter-spacing: .03em; }
+  .status b { color: #b9b9b6; font-weight: 500; }
+  .paste-box { margin-top: .9rem; }
+  .paste-box textarea {
+    width: 100%; height: 110px; background: #050505; border: 1px solid #222; color: #c0c0bd;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .74rem; padding: .7rem .8rem;
+    resize: vertical; outline: none;
+  }
+  .paste-box textarea:focus { border-color: #3a3a38; }
+  .paste-box .btn { margin-top: .6rem; }
+  .hidden { display: none !important; }
+
+  /* 按钮 */
+  .btn {
+    appearance: none; border: 1px solid #2a2a2a; background: #0d0d0d; color: #c0c0bd;
+    font-family: inherit; font-size: .82rem; padding: .5rem 1rem; cursor: pointer;
+    letter-spacing: .03em; transition: all .3s cubic-bezier(0.16,1,0.3,1);
+  }
+  .btn:hover { border-color: #4a4a48; color: #fff; background: #141414; }
+  .btn.primary { background: #e8e6e3; color: #0a0a0a; border-color: #e8e6e3; font-weight: 600; }
+  .btn.primary:hover { background: #fff; border-color: #fff; }
+  .btn.danger:hover { border-color: #6b2b26; color: #e08a80; background: #140a09; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* 工具行 */
+  .warn { font-size: .78rem; color: #d9a29b; background: #150b0a; border: 1px solid #33201e; padding: .5rem .8rem; margin-bottom: .9rem; }
+  .tool-rows { display: flex; flex-direction: column; gap: 8px; }
+  .trow {
+    display: grid; grid-template-columns: 26px minmax(0,1.05fr) minmax(0,1.05fr) minmax(0,1.5fr) 64px minmax(0,.45fr) auto;
+    gap: 6px; align-items: center; padding: .55rem .6rem; background: #050505; border: 1px solid #1c1c1c;
+    transition: border-color .3s;
+  }
+  .trow:hover { border-color: #2c2c2a; }
+  .trow.dup { border-color: #4a2a26; }
+  .trow .idx { font-size: .72rem; color: #55534f; font-family: 'Space Grotesk', sans-serif; text-align: center; }
+  .trow input {
+    width: 100%; background: #0a0a0a; border: 1px solid #222; color: #d8d6d3;
+    font-family: inherit; font-size: .8rem; padding: .38rem .55rem; outline: none;
+    transition: border-color .25s; min-width: 0;
+  }
+  .trow input:focus { border-color: #4a4a48; }
+  .trow input.f-file { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .74rem; }
+  .ops { display: flex; gap: 4px; }
+  .op {
+    width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+    background: #0d0d0d; border: 1px solid #262626; color: #8a8a87; cursor: pointer; font-size: .8rem;
+    transition: all .25s;
+  }
+  .op:hover { color: #fff; border-color: #4a4a48; }
+  .op.del:hover { color: #e08a80; border-color: #6b2b26; }
+  @media (max-width: 760px) {
+    .trow { grid-template-columns: 24px 1fr 1fr auto; }
+    .trow input.f-desc, .trow input.f-tag { grid-column: 2 / 4; }
+  }
+
+  .empty { font-size: .84rem; color: #6a6a68; padding: 1.2rem 0; text-align: center; }
+
+  .add-form { margin-top: 1.3rem; border-top: 1px solid #161616; padding-top: 1.2rem; }
+  .add-form h3 { font-size: .86rem; font-weight: 600; color: #b9b9b6; margin-bottom: .8rem; letter-spacing: .02em; }
+  .add-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: .9rem; }
+  @media (max-width: 560px) { .add-grid { grid-template-columns: 1fr; } }
+  .add-grid label { display: flex; flex-direction: column; gap: .3rem; font-size: .74rem; color: #7a7a78; letter-spacing: .05em; }
+  .add-grid input {
+    background: #050505; border: 1px solid #222; color: #d8d6d3; font-family: inherit;
+    font-size: .82rem; padding: .5rem .65rem; outline: none; transition: border-color .25s;
+  }
+  .add-grid input:focus { border-color: #4a4a48; }
+
+  /* 预览 & 导出 */
+  iframe#preview {
+    width: 100%; height: 620px; border: 1px solid #1c1c1c; background: #000; display: block;
+  }
+  @media (max-width: 560px) { iframe#preview { height: 480px; } }
+  .fname { display: flex; align-items: center; gap: .7rem; font-size: .8rem; color: #8a8a87; margin-bottom: .9rem; }
+  .fname input {
+    flex: 1; background: #050505; border: 1px solid #222; color: #d8d6d3; font-family: inherit;
+    font-size: .82rem; padding: .5rem .65rem; outline: none; min-width: 0;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  .fname input:focus { border-color: #4a4a48; }
+  .export-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* 弹窗 */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.78); display: flex; align-items: center; justify-content: center; padding: 1.4rem; z-index: 90; }
+  .modal-box { width: min(860px, 100%); max-height: 86vh; display: flex; flex-direction: column; background: #0a0a0a; border: 1px solid #262626; padding: 1.2rem; }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .9rem; }
+  .modal-head h3 { font-size: .95rem; font-weight: 600; }
+  .modal-head button { background: none; border: 1px solid #2a2a2a; color: #8a8a87; width: 30px; height: 30px; cursor: pointer; }
+  .modal-head button:hover { color: #fff; border-color: #4a4a48; }
+  #sourceArea {
+    flex: 1; width: 100%; resize: none; background: #050505; border: 1px solid #1e1e1e; color: #b9b9b6;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .72rem; line-height: 1.6;
+    padding: .8rem; outline: none; min-height: 340px; white-space: pre;
+  }
+  .modal-foot { margin-top: .9rem; display: flex; align-items: center; gap: .8rem; }
+  .modal-foot span { font-size: .76rem; color: #6a6a68; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 18px);
+    background: #101010; border: 1px solid #2e2e2c; color: #d8d6d3; font-size: .84rem;
+    padding: .65rem 1.2rem; opacity: 0; pointer-events: none; z-index: 99;
+    transition: all .35s cubic-bezier(0.16,1,0.3,1); max-width: 86vw; letter-spacing: .02em;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.ok { border-color: #2e3b2e; color: #a8c8a8; }
+  .toast.err { border-color: #4a2a26; color: #e0a098; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>入口页管理器</h1>
+    <p class="sub">每次更新：导入当前最新版入口页 → 添加 / 调整工具 → 下载新版替换旧文件</p>
+  </header>
+
+  <div class="cols">
+    <section>
+      <div class="card">
+        <h2>① 导入最新版本 <span class="count" id="tplInfo">未加载</span></h2>
+        <div class="dropzone" id="dropzone" title="点击选择文件">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          拖入或点击选择最新的入口页 HTML 文件
+        </div>
+        <input type="file" id="fileInput" accept=".html,.htm" hidden>
+        <div class="import-actions">
+          <button class="btn" id="btnBuiltin">使用内置版本起步</button>
+          <button class="btn" id="btnPaste">粘贴源码导入</button>
+          <button class="btn danger" id="btnReset">清空工作区</button>
+        </div>
+        <div class="paste-box hidden" id="pasteBox">
+          <textarea id="pasteArea" placeholder="把入口页 HTML 完整源码粘贴到这里，然后点“解析源码”" spellcheck="false"></textarea>
+          <button class="btn" id="btnParsePaste">解析源码</button>
+        </div>
+        <p class="status" id="importStatus">尚未加载模板 —— 请导入最新的 <b>新版本有图片编辑.html</b>，或点击“使用内置版本起步”。</p>
+        <p class="hint">· 网页会持续更新：每次都先导入<b style="color:#b9b9b6">当前最新版</b>再改，改动永远叠在最新版之上。<br>· 工作内容自动保存在本浏览器，重开不丢。</p>
+      </div>
+
+      <div class="card">
+        <h2>② 工具清单 <span class="count" id="toolCountBadge">0 项</span></h2>
+        <p class="warn hidden" id="dupWarn"></p>
+        <div class="tool-rows" id="toolRows"></div>
+        <div class="empty" id="emptyHint">清单为空 —— 先在 ① 导入入口页或使用内置版本。</div>
+
+        <div class="add-form">
+          <h3>添加新工具</h3>
+          <div class="add-grid">
+            <label>名称（必填）<input id="addName" placeholder="例如：图片压缩器"></label>
+            <label>文件名<input id="addFile" placeholder="留空则自动 = 名称.html"></label>
+            <label>描述<input id="addDesc" placeholder="一句话功能介绍（可选）"></label>
+            <label>标签<input id="addTag" placeholder="如：图片（可选）"></label>
+          </div>
+          <button class="btn primary" id="btnAdd">＋ 添加到清单</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <h2>③ 实时预览</h2>
+        <iframe id="preview" title="入口页预览"></iframe>
+        <p class="hint">预览即下载后页面的真实效果（预览环境不加载网络字体，下载后的文件正常）。</p>
+      </div>
+      <div class="card">
+        <h2>④ 导出更新版</h2>
+        <label class="fname">文件名 <input id="exportName" value="新版本有图片编辑.html" spellcheck="false"></label>
+        <div class="export-actions">
+          <button class="btn primary" id="btnDownload">⬇ 下载更新版</button>
+          <button class="btn" id="btnSource">查看 / 复制源码</button>
+        </div>
+        <p class="hint">下载后用同名文件替换旧版即可。若当前环境无法下载，请用“查看 / 复制源码”全选复制，保存为同名 .html 文件。</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="modal hidden" id="sourceModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>生成源码（全选复制后保存为 .html）</h3>
+      <button id="btnCloseModal" title="关闭">✕</button>
+    </div>
+    <textarea id="sourceArea" readonly spellcheck="false"></textarea>
+    <div class="modal-foot">
+      <button class="btn" id="btnCopy">复制全部</button>
+      <button class="btn" id="btnSelAll">全选</button>
+      <span id="copyTip"></span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="text/plain" id="builtinTemplate"><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>JISHENG OS · 工具箱</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    ::selection { background: rgba(255, 255, 255, .12); }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      min-height: 100vh;
+      background: #000;
+      color: #e8e6e3;
+      line-height: 1.5;
+      padding: 4rem 2rem 3rem;
+    }
+
+    .header { text-align: center; margin-bottom: 1.5rem; position: relative; }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.15rem;
+    }
+    h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: clamp(2.4rem, 6vw, 4.2rem);
+      letter-spacing: -0.03em;
+      color: #e8e6e3;
+      line-height: 1.1;
+    }
+    .seal { display: none; }
+
+    .subtitle {
+      margin-top: .9rem;
+      font-size: .92rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+      color: #8a8a87;
+    }
+
+    .brush { display: none; }
+
+    /* 装饰线：去掉中间文字后两条线首尾相连成一条 */
+    .list-head { display: flex; align-items: center; justify-content: center; gap: 0; margin: 3.1rem 0 1.9rem; }
+    .lh-line { height: 1px; width: min(120px, 14vw); background: linear-gradient(90deg, transparent, #2c2c2a); }
+    .lh-line.r { background: linear-gradient(90deg, #2c2c2a, transparent); }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+      gap: 2px;
+    }
+
+    /* 动画完全复刻原版 index.html：只有 hover 过渡，没有任何入场动画 */
+    .tool-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 212px;
+      padding: 1.6rem 1.45rem 1.35rem;
+      background: #0a0a0a;
+      border: 1px solid #1a1a1a;
+      text-decoration: none;
+      color: #e8e6e3;
+      cursor: pointer;
+      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    /* 鼠标跟随光斑 —— 与原版逐字一致：600px circle / rgba(255,255,255,0.04) / transparent 40% / opacity 0.4s */
+    .tool-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.04), transparent 40%);
+      opacity: 0;
+      transition: opacity 0.4s;
+      pointer-events: none;
+    }
+
+    .tool-card:hover::before {
+      opacity: 1;
+    }
+
+    .tool-card:hover {
+      background: #111;
+      border-color: #2a2a2a;
+    }
+    .tool-card:focus-visible {
+      outline: 1px solid #555;
+      outline-offset: 2px;
+    }
+
+    .tool-card h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #e8e6e3;
+      margin-bottom: .55rem;
+      transition: all 0.4s;
+    }
+    .tool-card:hover h3 {
+      letter-spacing: -0.01em;
+    }
+
+    .tool-card p {
+      font-size: .85rem;
+      font-weight: 300;
+      line-height: 1.68;
+      color: #8a8a87;
+      margin-bottom: 1.3rem;
+      flex: 1;
+      transition: color 0.4s;
+    }
+    .tool-card:hover p {
+      color: #ababa8;
+    }
+
+    .tool-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      border-top: 1px solid #141414;
+      padding-top: .85rem;
+    }
+
+    .open-arrow {
+      display: inline-flex;
+      color: #4a4a48;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: translateY(8px);
+      opacity: 0;
+    }
+    .open-arrow svg { width: 18px; height: 18px; }
+    .tool-card:hover .open-arrow {
+      transform: translateY(0);
+      opacity: 1;
+      color: #999997;
+    }
+
+    .page-foot { margin-top: 3.8rem; text-align: center; }
+    .foot-mark { display: none; }
+    .page-foot p {
+      font-size: .78rem;
+      font-weight: 300;
+      letter-spacing: .15em;
+      color: #5a5a58;
+    }
+
+    .noscript-note {
+      margin: 2rem auto 0;
+      max-width: 520px;
+      text-align: center;
+      padding: 1.4rem 1.6rem;
+      border: 1px solid #1a1a1a;
+      background: #0a0a0a;
+      color: #7a7a78;
+      font-size: .9rem;
+      letter-spacing: .08em;
+      border-radius: 6px;
+    }
+
+    /* 原版没有任何 keyframes / 入场动画，这里保持一致：全删 */
+
+    @media (max-width: 700px) {
+      body { padding: 2.5rem 1rem 2rem; }
+      .tools-grid { grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 2px; }
+      .tool-card { padding: 1.35rem 1.2rem 1.15rem; min-height: 196px; }
+      .title-row { gap: .8rem; }
+      .list-head { margin: 2.4rem 0 1.5rem; }
+    }
+    @media (max-width: 460px) {
+      .tools-grid { grid-template-columns: 1fr; }
+      .tool-card { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+      <div class="title-row">
+        <h1>工具</h1>
+        <span class="seal" aria-hidden="true">利其器</span>
+      </div>
+      <p class="subtitle">一站式访问所有实用网页工具 · 点击卡片立即使用</p>
+      <svg class="brush" viewBox="0 0 240 16" width="240" height="16" aria-hidden="true">
+        <path d="M6 9.5C40 5.5 78 4.5 120 5.5c46 1 82 1.5 112-2" fill="none" stroke="#221b10" stroke-width="3.2" stroke-linecap="round" opacity=".78"></path>
+        <path d="M18 12.5c30-2.5 62-3 96-2.6" fill="none" stroke="#221b10" stroke-width="1.4" stroke-linecap="round" opacity=".26"></path>
+        <rect x="228" y="4" width="7" height="7" rx="1.5" transform="rotate(45 231.5 7.5)" fill="#b0342a"></rect>
+      </svg>
+    </header>
+
+    <div class="list-head">
+      <span class="lh-line"></span>
+      <span class="lh-line r"></span>
+    </div>
+
+    <!-- 卡片只由下方脚本生成一次，不再在静态 HTML 里重复一份 -->
+    <div class="tools-grid" id="toolsGrid"></div>
+
+    <footer class="page-foot">
+      <div class="foot-mark" aria-hidden="true">
+        <span class="foot-line"></span>
+        <svg width="9" height="9" viewBox="0 0 10 10"><rect x="1.6" y="1.6" width="6.8" height="6.8" rx="1" transform="rotate(45 5 5)" fill="#b0342a"></rect></svg>
+        <span class="foot-line"></span>
+      </div>
+      <p>JISHENG OS · 工欲善其事 必先利其器</p>
+    </footer>
+
+  <noscript>
+    <div class="noscript-note">
+      「 请启用 JavaScript 以查看完整的工具卡片导航 」
+    </div>
+  </noscript>
+
+  <script>
+  (function () {
+    function SVG(inner) {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + '</svg>';
+    }
+
+    var ARROW = SVG('<path d="M7 17 17 7"/><path d="M9 7h8v8"/>');
+
+    var tools = [
+      {
+        name: "Markdown 编辑器",
+        file: "Markdown 编辑器.html",
+        description: "沉浸式 Markdown 书写与实时预览，极简优雅。",
+        tag: "写作"
+      },
+      {
+        name: "ZIP 时区修正",
+        file: "ZIP时区修正.html",
+        description: "批量修正 ZIP 内文件时区，高效准确。",
+        tag: "文件处理"
+      },
+      {
+        name: "JISHENG 首页",
+        file: "index.html",
+        description: "主入口页面，快速导航至所有资源。",
+        tag: "导航"
+      },
+      {
+        name: "万能超级工具箱",
+        file: "万能超级工具箱.html",
+        description: "集成多种实用小工具，一站式解决杂项需求。",
+        tag: "合集"
+      },
+      {
+        name: "世界上最好的文字替换工具",
+        file: "世界上最好的文字替换工具.html",
+        description: "强大文字替换引擎，支持正则与批量处理。",
+        tag: "文本"
+      },
+      {
+        name: "差异对比工具",
+        file: "差异对比工具.html",
+        description: "高亮显示文本/代码差异，快速审阅变更。",
+        tag: "对比"
+      },
+      {
+        name: "收藏夹对比同步工具",
+        file: "收藏夹对比同步工具.html",
+        description: "跨浏览器书签对比，同步去重一步到位。",
+        tag: "同步"
+      },
+      {
+        name: "文章多版本对比评审",
+        file: "文章多版本对比评审.html",
+        description: "多版本内容并行评审，注释与建议清晰。",
+        tag: "审阅"
+      },
+      {
+        name: "移动端文字编辑",
+        file: "移动端文字编辑.html",
+        description: "专为触屏优化的文字编辑面板，简洁顺手。",
+        tag: "移动"
+      },
+      {
+        name: "炸字移动端文字编辑",
+        file: "炸字移动端文字编辑.html",
+        description: "大爆炸式拆字重组，移动端触屏优化的创意文字编辑。",
+        tag: "移动"
+      },
+      {
+        name: "图片元数据擦除查看",
+        file: "图片元数据擦除查看.html",
+        description: "查看并一键擦除图片 EXIF 元数据，隐私保护一步到位。",
+        tag: "隐私"
+      },
+      {
+        name: "入口页管理器",
+        file: "入口页管理器.html",
+        description: "导入最新入口页，添加与管理工具卡片，一键导出更新版。",
+        tag: "管理"
+      }
+    ];
+
+    var grid = document.getElementById("toolsGrid");
+    var countEl = document.getElementById("toolCount");
+    if (countEl) countEl.textContent = String(tools.length);
+
+    tools.forEach(function (tool, i) {
+      var card = document.createElement("a");
+      card.className = "tool-card";
+      card.href = tool.file;
+      card.setAttribute("aria-label", tool.name);
+      card.innerHTML =
+        '<h3>' + tool.name + '</h3>' +
+        '<p>' + tool.description + '</p>' +
+        '<div class="tool-footer">' +
+          '<span class="open-arrow">' + ARROW + '</span>' +
+        '</div>';
+
+      // 鼠标跟随光斑（与原版 index.html 相同的交互）
+      card.addEventListener('mousemove', function (e) {
+        var rect = card.getBoundingClientRect();
+        var x = ((e.clientX - rect.left) / rect.width) * 100;
+        var y = ((e.clientY - rect.top) / rect.height) * 100;
+        card.style.setProperty('--mx', x + '%');
+        card.style.setProperty('--my', y + '%');
+      });
+
+      grid.appendChild(card);
+    });
+  })();
+  <\/script>
+</body>
+</html>
+</script>
+<script>
+(function () {
+  'use strict';
+  var KEY = 'jisheng-entry-manager-v1';
+  var state = { template: null, templateName: '', tools: [], filename: '新版本有图片编辑.html' };
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- 工具函数 ---------- */
+  var toastTimer = null;
+  function toast(msg, kind) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (kind ? ' ' + kind : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = 'toast'; }, 2600);
+  }
+  function debounce(fn, ms) {
+    var h = null;
+    return function () {
+      var args = arguments, self = this;
+      clearTimeout(h);
+      h = setTimeout(function () { fn.apply(self, args); }, ms);
+    };
+  }
+  var store = {
+    get: function () { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } },
+    set: function (v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} },
+    clear: function () { try { localStorage.removeItem(KEY); } catch (e) {} }
+  };
+  var save = debounce(function () { store.set(state); }, 350);
+
+  function builtinTemplate() {
+    return $('builtinTemplate').textContent.replace(/<\\\/script>/gi, '<' + '/script>');
+  }
+
+  /* ---------- 解析入口页 ---------- */
+  function parseTools(html) {
+    var m = html.match(/var tools = (\[[\s\S]*?\]);/);
+    if (m) {
+      try {
+        var arr = (new Function('return ' + m[1]))();
+        if (Object.prototype.toString.call(arr) === '[object Array]') {
+          return arr.map(function (t) {
+            return { name: t.name || '', file: t.file || '', description: t.description || '', tag: t.tag || '' };
+          });
+        }
+      } catch (e) { /* 落到静态卡片解析 */ }
+    }
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    return Array.prototype.map.call(doc.querySelectorAll('.tool-card'), function (a) {
+      var h3 = a.querySelector('h3'), p = a.querySelector('p');
+      return {
+        name: (h3 ? h3.textContent : (a.getAttribute('aria-label') || '')).trim(),
+        file: a.getAttribute('href') || '',
+        description: p ? p.textContent.trim() : '',
+        tag: ''
+      };
+    });
+  }
+
+  function applyTemplate(html, name) {
+    var tools = parseTools(html);
+    if (!tools.length) { toast('未在文件里找到任何工具卡片，请确认这是入口页', 'err'); return; }
+    state.template = html;
+    state.templateName = name;
+    state.tools = tools;
+    renderAll();
+    save();
+    toast('已加载「' + name + '」：' + tools.length + ' 个工具', 'ok');
+  }
+
+  /* ---------- 生成新版入口页 ---------- */
+  function serializeTools(tools) {
+    var rows = tools.map(function (t) {
+      return '      {\n        name: ' + JSON.stringify(t.name) +
+             ',\n        file: ' + JSON.stringify(t.file) +
+             ',\n        description: ' + JSON.stringify(t.description) +
+             ',\n        tag: ' + JSON.stringify(t.tag) + '\n      }';
+    });
+    return 'var tools = [\n' + rows.join(',\n') + '\n    ];';
+  }
+
+  function normalize(t) {
+    var name = (t.name || '').trim();
+    var file = (t.file || '').trim();
+    if (!file && name) file = name + '.html';
+    if (file && file.indexOf('.') < 0) file += '.html';
+    return {
+      name: name,
+      file: file,
+      description: (t.description || '').trim() || '点击卡片立即使用。',
+      tag: (t.tag || '').trim()
+    };
+  }
+
+  function generate() {
+    if (!state.template) throw new Error('请先在 ① 导入最新版入口页，或点“使用内置版本起步”');
+    var tools = state.tools.map(normalize).filter(function (t) { return t.name; });
+    var out = state.template;
+
+    // 1) 清掉历史上“浏览器另存为”残留的静态卡片，杜绝重复一整页的 bug
+    out = out.replace(/<a\b[^>]*class="tool-card"[^>]*>[\s\S]*?<\/a>\s*/g, '');
+
+    // 2) 替换 tools 数组（优先做纯文本替换，保留原文件其余部分的格式与动效）
+    var block = serializeTools(tools);
+    if (/var tools = \[[\s\S]*?\];/.test(out)) {
+      out = out.replace(/var tools = \[[\s\S]*?\];/, function () { return block; });
+    } else {
+      out = domRebuild(out, block, tools);
+    }
+
+    // 3) 同步静态计数（脚本运行时也会自己更新，这里保证源码里就是对的）
+    out = out.replace(/(<[^>]*id="toolCount"[^>]*>)([^<]*)(<)/, function (mm, a, b, c) {
+      return a + tools.length + c;
+    });
+    return out;
+  }
+
+  /* 兜底：模板里没有标准脚本时，用 DOM 重建一份标准脚本 */
+  function domRebuild(html, block, tools) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var grid = doc.getElementById('toolsGrid');
+    if (!grid) throw new Error('该文件不是标准入口页（缺少 #toolsGrid）');
+    Array.prototype.forEach.call(grid.querySelectorAll('.tool-card'), function (a) { a.remove(); });
+    Array.prototype.forEach.call(doc.querySelectorAll('script'), function (s) {
+      if (s.textContent.indexOf('toolsGrid') > -1 || s.textContent.indexOf('var tools') > -1) s.remove();
+    });
+    var scriptEl = doc.createElement('script');
+    scriptEl.textContent = '\n' +
+      '  (function () {\n' +
+      '    function SVG(inner) {\n' +
+      "      return '<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">' + inner + '<' + '/svg>';\n" +
+      '    }\n' +
+      '    var ARROW = SVG(' + JSON.stringify('<path d="M7 17 17 7"/><path d="M9 7h8v8"/>') + ');\n' +
+      '    ' + block + '\n' +
+      '    var grid = document.getElementById("toolsGrid");\n' +
+      '    var countEl = document.getElementById("toolCount");\n' +
+      '    if (countEl) countEl.textContent = String(tools.length);\n' +
+      '    tools.forEach(function (tool) {\n' +
+      '      var card = document.createElement("a");\n' +
+      '      card.className = "tool-card";\n' +
+      '      card.href = tool.file;\n' +
+      '      card.setAttribute("aria-label", tool.name);\n' +
+      '      card.innerHTML =\n' +
+      "        '<h3>' + tool.name + '</h3>' +\n" +
+      "        '<p>' + tool.description + '</p>' +\n" +
+      "        '<div class=\"tool-footer\">' +\n" +
+      "          '<span class=\"open-arrow\">' + ARROW + '</span>' +\n" +
+      '        \'<\/div>\';\n' +
+      '      card.addEventListener(\'mousemove\', function (e) {\n' +
+      '        var rect = card.getBoundingClientRect();\n' +
+      '        var x = ((e.clientX - rect.left) / rect.width) * 100;\n' +
+      '        var y = ((e.clientY - rect.top) / rect.height) * 100;\n' +
+      '        card.style.setProperty(\'--mx\', x + \'%\');\n' +
+      '        card.style.setProperty(\'--my\', y + \'%\');\n' +
+      '      });\n' +
+      '      grid.appendChild(card);\n' +
+      '    });\n' +
+      '  })();\n';
+    doc.body.appendChild(scriptEl);
+    var countEl = doc.getElementById('toolCount');
+    if (countEl) countEl.textContent = String(tools.length);
+    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  }
+
+  /* ---------- 渲染 ---------- */
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderRows() {
+    var box = $('toolRows');
+    box.innerHTML = '';
+    state.tools.forEach(function (t, i) {
+      var row = document.createElement('div');
+      row.className = 'trow';
+      row.setAttribute('data-i', i);
+      row.innerHTML =
+        '<span class="idx">' + (i + 1) + '</span>' +
+        '<input class="f f-name" value="' + esc(t.name) + '" placeholder="名称" spellcheck="false">' +
+        '<input class="f f-file" value="' + esc(t.file) + '" placeholder="文件名.html" spellcheck="false">' +
+        '<input class="f f-desc" value="' + esc(t.description) + '" placeholder="描述（可选）" spellcheck="false">' +
+        '<input class="f f-tag" value="' + esc(t.tag) + '" placeholder="标签" spellcheck="false">' +
+        '<div class="ops">' +
+          '<button class="op" data-act="up" title="上移">↑</button>' +
+          '<button class="op" data-act="down" title="下移">↓</button>' +
+          '<button class="op del" data-act="del" title="删除">✕</button>' +
+        '</div>';
+      box.appendChild(row);
+    });
+    $('emptyHint').className = state.tools.length ? 'empty hidden' : 'empty';
+    $('toolCountBadge').textContent = state.tools.length + ' 项';
+
+    // 重复文件名检测
+    var seen = {}, dups = {};
+    state.tools.forEach(function (t, i) {
+      var f = normalize(t).file;
+      if (f) { if (seen[f] !== undefined) { dups[seen[f]] = true; dups[i] = true; } else seen[f] = i; }
+    });
+    Array.prototype.forEach.call(box.children, function (row, i) {
+      if (dups[i]) row.className += ' dup';
+    });
+    var names = Object.keys(dups).map(function (i) { return state.tools[i].name; });
+    var warn = $('dupWarn');
+    if (names.length) {
+      warn.textContent = '⚠ 检测到重复文件名：' + names.join('、') + ' —— 两个卡片会指向同一个文件，请检查。';
+      warn.className = 'warn';
+    } else warn.className = 'warn hidden';
+  }
+
+  function refreshStatus() {
+    var el = $('importStatus');
+    if (state.template) {
+      el.innerHTML = '已加载模板：<b>' + esc(state.templateName) + '</b> · ' + state.tools.length + ' 个工具 · 可在下方继续编辑';
+      $('tplInfo').textContent = '已加载';
+    } else {
+      el.innerHTML = '尚未加载模板 —— 请导入最新的 <b>新版本有图片编辑.html</b>，或点击“使用内置版本起步”。';
+      $('tplInfo').textContent = '未加载';
+    }
+  }
+
+  var refreshPreview = debounce(function () {
+    if (!state.template) { $('preview').srcdoc = '<body style="background:#000;color:#555;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">先导入入口页，这里会出现实时预览</body>'; return; }
+    try { $('preview').srcdoc = generate(); } catch (e) { toast(e.message, 'err'); }
+  }, 450);
+
+  function renderAll() {
+    renderRows();
+    refreshStatus();
+    refreshPreview();
+  }
+
+  /* ---------- 事件 ---------- */
+  // 导入：文件
+  $('dropzone').addEventListener('click', function () { $('fileInput').click(); });
+  $('fileInput').addEventListener('change', function () {
+    var f = this.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { applyTemplate(String(r.result), f.name); };
+    r.readAsText(f, 'utf-8');
+    this.value = '';
+  });
+  ['dragover', 'dragenter'].forEach(function (ev) {
+    $('dropzone').addEventListener(ev, function (e) { e.preventDefault(); this.className = 'dropzone over'; });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    $('dropzone').addEventListener(ev, function (e) { e.preventDefault(); this.className = 'dropzone'; });
+  });
+  $('dropzone').addEventListener('drop', function (e) {
+    e.preventDefault();
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { applyTemplate(String(r.result), f.name); };
+    r.readAsText(f, 'utf-8');
+  });
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); });
+
+  $('btnBuiltin').addEventListener('click', function () {
+    applyTemplate(builtinTemplate(), '内置版本（当前最新）');
+  });
+  $('btnPaste').addEventListener('click', function () {
+    $('pasteBox').classList.toggle('hidden');
+  });
+  $('btnParsePaste').addEventListener('click', function () {
+    var text = $('pasteArea').value;
+    if (!text.trim()) { toast('请先粘贴入口页源码', 'err'); return; }
+    applyTemplate(text, '粘贴的源码');
+  });
+  $('btnReset').addEventListener('click', function () {
+    if (!confirm('确定清空工作区？将删除已导入的模板与清单（不可恢复）。')) return;
+    state.template = null; state.templateName = ''; state.tools = [];
+    store.clear();
+    $('pasteArea').value = '';
+    renderAll();
+    toast('工作区已清空');
+  });
+
+  // 清单编辑（事件委托）
+  $('toolRows').addEventListener('input', function (e) {
+    var input = e.target;
+    if (input.tagName !== 'INPUT') return;
+    var row = input.closest('.trow');
+    var i = parseInt(row.getAttribute('data-i'), 10);
+    var fieldMap = { 'f-name': 'name', 'f-file': 'file', 'f-desc': 'description', 'f-tag': 'tag' };
+    var key = fieldMap[input.className.split(' ')[1]];
+    if (key) {
+      state.tools[i][key] = input.value;
+      save(); refreshPreview();
+    }
+  });
+  $('toolRows').addEventListener('click', function (e) {
+    var btn = e.target.closest('.op');
+    if (!btn) return;
+    var row = btn.closest('.trow');
+    var i = parseInt(row.getAttribute('data-i'), 10);
+    var act = btn.getAttribute('data-act');
+    if (act === 'del') {
+      state.tools.splice(i, 1);
+      renderAll(); save();
+    } else if (act === 'up' && i > 0) {
+      var a = state.tools.splice(i, 1)[0];
+      state.tools.splice(i - 1, 0, a);
+      renderAll(); save();
+    } else if (act === 'down' && i < state.tools.length - 1) {
+      var b = state.tools.splice(i, 1)[0];
+      state.tools.splice(i + 1, 0, b);
+      renderAll(); save();
+    }
+  });
+
+  // 添加
+  function doAdd() {
+    var name = $('addName').value.trim();
+    if (!name) { toast('请至少填写工具名称', 'err'); $('addName').focus(); return; }
+    state.tools.push({
+      name: name,
+      file: $('addFile').value.trim(),
+      description: $('addDesc').value.trim(),
+      tag: $('addTag').value.trim()
+    });
+    $('addName').value = ''; $('addFile').value = ''; $('addDesc').value = ''; $('addTag').value = '';
+    renderAll(); save();
+    toast('已添加「' + name + '」', 'ok');
+    $('addName').focus();
+  }
+  $('btnAdd').addEventListener('click', doAdd);
+  ['addName', 'addFile', 'addDesc', 'addTag'].forEach(function (id) {
+    $(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') doAdd(); });
+  });
+
+  // 导出
+  $('exportName').addEventListener('input', function () { state.filename = this.value; save(); });
+  $('btnDownload').addEventListener('click', function () {
+    var html;
+    try { html = generate(); } catch (e) { toast(e.message, 'err'); return; }
+    var fname = (state.filename || '').trim() || '新版本有图片编辑.html';
+    try {
+      var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      toast('已开始下载「' + fname + '」，替换旧文件即完成更新', 'ok');
+    } catch (e) {
+      $('sourceArea').value = html;
+      $('sourceModal').classList.remove('hidden');
+      toast('当前环境限制下载，请复制源码保存', 'err');
+    }
+  });
+  $('btnSource').addEventListener('click', function () {
+    var html;
+    try { html = generate(); } catch (e) { toast(e.message, 'err'); return; }
+    $('sourceArea').value = html;
+    $('copyTip').textContent = '';
+    $('sourceModal').classList.remove('hidden');
+  });
+  $('btnCloseModal').addEventListener('click', function () { $('sourceModal').classList.add('hidden'); });
+  $('sourceModal').addEventListener('click', function (e) { if (e.target === this) this.classList.add('hidden'); });
+  $('btnSelAll').addEventListener('click', function () { $('sourceArea').select(); });
+  $('btnCopy').addEventListener('click', function () {
+    var area = $('sourceArea');
+    area.select();
+    var done = function () { $('copyTip').textContent = '已复制到剪贴板 ✓'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(area.value).then(done, function () {
+        try { document.execCommand('copy'); done(); } catch (e2) { $('copyTip').textContent = '请按 Ctrl/Cmd+C 手动复制'; }
+      });
+    } else {
+      try { document.execCommand('copy'); done(); } catch (e2) { $('copyTip').textContent = '请按 Ctrl/Cmd+C 手动复制'; }
+    }
+  });
+
+  /* ---------- 初始化 ---------- */
+  (function init() {
+    var saved = store.get();
+    if (saved && saved.template && saved.tools) {
+      state.template = saved.template;
+      state.templateName = saved.templateName || '';
+      state.tools = saved.tools;
+      state.filename = saved.filename || '新版本有图片编辑.html';
+      $('exportName').value = state.filename;
+      renderAll();
+      toast('已恢复上次的工作状态：' + state.tools.length + ' 个工具', 'ok');
+    } else {
+      renderAll();
+    }
+  })();
+
+  /* 调试 / 自动化接口（不影响页面功能） */
+  window.__mgr = {
+    import: function (html, name) { applyTemplate(html, name || '测试导入'); },
+    generate: function () { return generate(); },
+    state: state,
+    add: function (t) { state.tools.push(t); renderAll(); save(); }
+  };
+})();
+</script>
+</body>
+</html>
