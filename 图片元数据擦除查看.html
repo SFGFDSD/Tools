@@ -1,0 +1,1885 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>隐私净化站 · 图片元数据擦除 & PNG Info</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a12;
+  --surface: #12121e;
+  --card: #1a1a2e;
+  --border: rgba(0, 255, 200, 0.12);
+  --accent: #00e5b0;
+  --accent-dim: rgba(0, 229, 176, 0.15);
+  --accent-glow: rgba(0, 229, 176, 0.25);
+  --accent-blue: #3b82f6;
+  --accent-blue-dim: rgba(59,130,246,0.15);
+  --text: #e8e8f0;
+  --text-dim: #8888a0;
+  --text-muted: #5c6577;
+  --danger: #ff4757;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 6px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ---- Animated BG ---- */
+.bg-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.bg-canvas .orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  animation: orbFloat 18s ease-in-out infinite;
+}
+.bg-canvas .orb:nth-child(1) {
+  width: 500px; height: 500px;
+  background: #00e5b0;
+  top: -10%; left: -5%;
+  animation-delay: 0s;
+}
+.bg-canvas .orb:nth-child(2) {
+  width: 400px; height: 400px;
+  background: #3b82f6;
+  bottom: -8%; right: -5%;
+  animation-delay: -6s;
+}
+.bg-canvas .orb:nth-child(3) {
+  width: 300px; height: 300px;
+  background: #7c3aed;
+  top: 40%; left: 50%;
+  animation-delay: -12s;
+}
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(40px, -60px) scale(1.08); }
+  50% { transform: translate(-30px, 30px) scale(0.92); }
+  75% { transform: translate(50px, 40px) scale(1.05); }
+}
+
+/* ---- Layout ---- */
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* ---- Header ---- */
+header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+header .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(0, 229, 176, 0.2);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  padding: 4px 16px;
+  border-radius: 100px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+header .badge .dot {
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: pulseDot 2s ease-in-out infinite;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+header h1 {
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #fff 40%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+}
+header p {
+  margin-top: 12px;
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ---- Mode Switcher ---- */
+.mode-switch {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.mode-btn {
+  padding: 10px 28px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mode-btn:hover { border-color: var(--accent); color: var(--text); }
+.mode-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.mode-btn .mode-icon {
+  font-size: 16px;
+}
+
+/* ---- Stats Bar ---- */
+.stats-bar {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 28px;
+  padding: 14px 28px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  backdrop-filter: blur(12px);
+}
+.stat-item { text-align: center; }
+.stat-item .num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.stat-item .label {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ---- Drop Zone ---- */
+.drop-zone {
+  position: relative;
+  border: 2px dashed rgba(0, 229, 176, 0.25);
+  border-radius: var(--radius);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.35s ease;
+  background: rgba(0, 229, 176, 0.03);
+  overflow: hidden;
+}
+.drop-zone::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius);
+  background: conic-gradient(from 0deg, transparent, var(--accent), transparent, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: -1;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  padding: 2px;
+}
+.drop-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(0, 229, 176, 0.08);
+  transform: scale(1.01);
+}
+.drop-zone.dragover::before {
+  opacity: 1;
+  animation: spinBorder 3s linear infinite;
+}
+@keyframes spinBorder {
+  to { transform: rotate(360deg); }
+}
+.drop-zone .icon-wrap {
+  width: 56px; height: 56px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  transition: transform 0.3s ease;
+}
+.drop-zone.dragover .icon-wrap { transform: scale(1.15); }
+.drop-zone .icon-wrap svg {
+  width: 24px; height: 24px;
+  color: var(--accent);
+}
+.drop-zone h2 {
+  font-size: 17px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.drop-zone h2 span { color: var(--accent); }
+.drop-zone .sub {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.drop-zone .formats {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.drop-zone .formats span {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text-dim);
+}
+#fileInput { display: none; }
+
+/* ---- Toolbar ---- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+  margin-bottom: 20px;
+}
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.toolbar-left .title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.toolbar-left .count {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent);
+}
+.toolbar-right {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary {
+  background: var(--accent);
+  color: #0a0a12;
+}
+.btn-primary:hover {
+  box-shadow: 0 0 24px var(--accent-glow);
+  transform: translateY(-1px);
+}
+.btn-primary:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.btn-outline:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.btn-blue {
+  background: var(--accent-blue-dim);
+  border: 1px solid rgba(59,130,246,0.25);
+  color: var(--accent-blue);
+}
+.btn-blue:hover {
+  background: rgba(59,130,246,0.2);
+  border-color: var(--accent-blue);
+}
+.btn-danger {
+  background: rgba(255, 71, 87, 0.12);
+  border: 1px solid rgba(255, 71, 87, 0.25);
+  color: var(--danger);
+}
+.btn-danger:hover {
+  background: rgba(255, 71, 87, 0.2);
+  border-color: var(--danger);
+}
+.btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+/* ---- Image Grid ---- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* ---- Image Card ---- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  opacity: 0;
+  transform: translateY(16px);
+  animation: cardIn 0.4s ease forwards;
+}
+@keyframes cardIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+.card:hover {
+  border-color: rgba(0, 229, 176, 0.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.card .preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/10;
+  background: #0d0d1a;
+  overflow: hidden;
+}
+.card .preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.card .preview .status-badge {
+  position: absolute;
+  top: 10px; right: 10px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(0, 229, 176, 0.15);
+  border: 1px solid rgba(0, 229, 176, 0.2);
+  color: var(--accent);
+  backdrop-filter: blur(4px);
+}
+.card .info {
+  padding: 12px 14px 14px;
+}
+.card .info .name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+.card .info .sizes {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.card .info .sizes .size-original { color: var(--text-dim); }
+.card .info .sizes .size-cleaned { color: var(--accent); }
+.card .info .sizes .size-arrow { color: var(--text-dim); font-size: 10px; }
+.card .actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.card .actions .btn {
+  flex: 1;
+  justify-content: center;
+  font-size: 12px;
+  padding: 7px 10px;
+  min-width: 0;
+}
+.card .actions .btn.meta-btn {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 7px 8px;
+}
+
+/* ---- Empty State ---- */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+}
+.empty-state svg {
+  width: 48px; height: 48px;
+  opacity: 0.2;
+  margin-bottom: 16px;
+}
+.empty-state h3 {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+/* ---- Progress Overlay ---- */
+.progress-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(10, 10, 18, 0.85);
+  backdrop-filter: blur(12px);
+  align-items: center;
+  justify-content: center;
+}
+.progress-overlay.active { display: flex; }
+.progress-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 48px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+}
+.progress-box .spinner {
+  width: 48px; height: 48px;
+  margin: 0 auto 20px;
+  border: 3px solid rgba(0, 229, 176, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-box h3 {
+  font-size: 17px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.progress-box p {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.progress-box .progress-bar-wrap {
+  margin-top: 20px;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-box .progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), #3b82f6);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* ============================================
+   METADATA MODAL
+   ============================================ */
+.meta-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(10, 10, 18, 0.88);
+  backdrop-filter: blur(16px);
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.meta-modal.active { display: flex; }
+.meta-modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 64px rgba(0,0,0,0.5);
+}
+.meta-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.meta-modal-header h2 {
+  font-size: 17px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.meta-modal-header h2 .meta-icon {
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-blue-dim);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--accent-blue);
+}
+.meta-modal-header .close-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.meta-modal-header .close-btn:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.meta-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* Modal tabs */
+.meta-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg);
+  padding: 4px 4px 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.meta-tabs button {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+.meta-tabs button:hover { color: var(--text); background: var(--card); }
+.meta-tabs button.active {
+  background: var(--surface);
+  color: var(--accent);
+}
+.meta-tab-content { display: none; padding: 20px 24px; }
+.meta-tab-content.active { display: block; }
+
+/* Parameters display */
+.param-section { margin-bottom: 20px; }
+.param-section:last-child { margin-bottom: 0; }
+.param-section h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.param-prompt {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  position: relative;
+}
+.param-prompt .copy-btn {
+  position: absolute;
+  top: 8px; right: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.param-prompt .copy-btn:hover {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--accent);
+}
+.param-prompt .copy-btn.copied {
+  background: var(--accent);
+  color: #0a0a12;
+  border-color: var(--accent);
+}
+.param-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.param-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 10px 14px;
+}
+.param-item .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.param-item .value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 2px;
+  word-break: break-all;
+}
+.param-item .value.accent { color: var(--accent-blue); }
+.param-item .value.green { color: var(--accent); }
+.param-item .value.amber { color: #f59e0b; }
+
+/* Chunks view */
+.chunks-list { display: flex; flex-direction: column; gap: 6px; }
+.chunk-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+.chunk-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  user-select: none;
+}
+.chunk-header:hover { background: rgba(255,255,255,0.03); }
+.chunk-header .chunk-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-blue);
+}
+.chunk-header .chunk-length {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.chunk-header .chunk-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--accent-blue-dim);
+  border: 1px solid rgba(59,130,246,0.2);
+  color: var(--accent-blue);
+  font-weight: 500;
+}
+.chunk-header .chunk-tag.meta {
+  background: var(--accent-dim);
+  border-color: rgba(0,229,176,0.2);
+  color: var(--accent);
+}
+.chunk-header .chunk-tag.image {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.2);
+  color: #f59e0b;
+}
+.chunk-header .chunk-arrow {
+  margin-left: auto;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  font-size: 11px;
+}
+.chunk-card.expanded .chunk-arrow { transform: rotate(180deg); }
+.chunk-body {
+  display: none;
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--border);
+}
+.chunk-card.expanded .chunk-body { display: block; }
+.chunk-body pre {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg);
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 8px;
+  max-height: 260px;
+  overflow: auto;
+}
+.chunk-body .chunk-key {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+.chunk-body .chunk-key strong { color: var(--text-dim); }
+.comfy-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.modal-no-meta {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-dim);
+}
+.modal-no-meta .icon { font-size: 32px; margin-bottom: 10px; opacity: 0.5; }
+.modal-no-meta p { font-size: 14px; }
+
+/* ---- Toast ---- */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 2.5s forwards;
+}
+.toast.success { border-color: rgba(0, 229, 176, 0.3); }
+.toast.error { border-color: rgba(255, 71, 87, 0.3); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateY(10px); }
+}
+
+/* ---- Footer ---- */
+footer {
+  text-align: center;
+  margin-top: 50px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ---- Responsive ---- */
+@media (max-width: 640px) {
+  .container { padding: 24px 16px 60px; }
+  .drop-zone { padding: 36px 16px; }
+  .stats-bar { gap: 16px; padding: 10px 16px; border-radius: var(--radius-sm); flex-wrap: wrap; }
+  .stat-item .num { font-size: 16px; }
+  .grid { grid-template-columns: 1fr; }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .toolbar-right { justify-content: stretch; }
+  .toolbar-right .btn { flex: 1; justify-content: center; }
+  .progress-box { padding: 28px 20px; }
+  .param-grid { grid-template-columns: 1fr 1fr; }
+  .meta-modal-content { max-height: 95vh; }
+  .meta-tab-content { padding: 16px; }
+  .mode-switch { gap: 10px; }
+  .mode-btn { padding: 8px 18px; font-size: 13px; }
+}
+@media (max-width: 480px) {
+  .param-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- BG Orbs -->
+<div class="bg-canvas">
+  <div class="orb"></div>
+  <div class="orb"></div>
+  <div class="orb"></div>
+</div>
+
+<!-- Progress Overlay -->
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-box">
+    <div class="spinner"></div>
+    <h3 id="progressTitle">处理中...</h3>
+    <p id="progressDesc">正在擦除图片元数据</p>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Metadata Modal -->
+<div class="meta-modal" id="metaModal">
+  <div class="meta-modal-content">
+    <div class="meta-modal-header">
+      <h2><span class="meta-icon">🔍</span> <span id="modalTitle">PNG 元数据</span></h2>
+      <button class="close-btn" id="modalCloseBtn">✕</button>
+    </div>
+    <div class="meta-tabs" id="metaTabs">
+      <button class="active" data-meta-tab="parsed">解析参数</button>
+      <button data-meta-tab="chunks">原始 Chunks</button>
+    </div>
+    <div class="meta-modal-body">
+      <div class="meta-tab-content active" id="metaTabParsed">
+        <div id="metaParsedView"><!-- filled by JS --></div>
+      </div>
+      <div class="meta-tab-content" id="metaTabChunks">
+        <div id="metaChunksView"><!-- filled by JS --></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="container">
+  <header>
+    <div class="badge">
+      <span class="dot"></span>
+      隐私保护 · 元数据全掌握
+    </div>
+    <h1>隐私净化站</h1>
+    <p>拖入 AI 生成的图片，一键擦除隐藏元数据，保护创作隐私。<br>PNG 图片还可查看完整的 Prompt 与生成参数，一切尽在掌握。</p>
+  </header>
+
+  <!-- Mode Switcher -->
+  <div class="mode-switch">
+    <button class="mode-btn active" data-mode="clean">
+      <span class="mode-icon">🧹</span> 批量净化
+    </button>
+    <button class="mode-btn" data-mode="pnginfo">
+      <span class="mode-icon">🔍</span> PNG Info 查看
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-item">
+      <div class="num" id="statTotal">0</div>
+      <div class="label">待处理</div>
+    </div>
+    <div class="stat-item">
+      <div class="num" id="statProcessed">0</div>
+      <div class="label">已净化</div>
+    </div>
+    <div class="stat-item">
+      <div class="num" id="statSaved">0 KB</div>
+      <div class="label">已节省</div>
+    </div>
+  </div>
+
+  <!-- Drop Zone -->
+  <div class="drop-zone" id="dropZone">
+    <div class="icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </div>
+    <h2 id="dropTitle">拖拽图片到此处，或 <span>点击选择</span></h2>
+    <p class="sub" id="dropSub">图片仅在你的浏览器中处理，不会上传至任何服务器</p>
+    <div class="formats" id="dropFormats">
+      <span>PNG</span>
+      <span>JPG</span>
+      <span>JPEG</span>
+      <span>WEBP</span>
+      <span>BMP</span>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar" id="toolbar" style="display:none">
+    <div class="toolbar-left">
+      <span class="title">已添加 <span class="count" id="imageCount">0</span> 张图片</span>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn btn-outline" id="clearAllBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        清空
+      </button>
+      <button class="btn btn-outline" id="downloadOneByOneBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+          <line x1="7" y1="3" x2="7" y2="8"/>
+          <line x1="12" y1="3" x2="12" y2="8"/>
+          <line x1="17" y1="3" x2="17" y2="8"/>
+        </svg>
+        逐个下载
+      </button>
+      <button class="btn btn-primary" id="downloadAllBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        打包下载全部
+      </button>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid" id="imageGrid">
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      <h3>暂无图片，拖拽或点击上方区域开始</h3>
+    </div>
+  </div>
+
+  <footer>
+    所有处理均在本地浏览器完成，图片不会上传到任何服务器。<br>
+    隐私保护 · 开源精神 · 安全可靠
+  </footer>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ==========================================
+     STATE
+     ========================================== */
+  let images = []; // { id, file, originalSize, cleanedBlob, cleanedSize, name, dataUrl, pngChunks, pngParams }
+  let idCounter = 0;
+  let currentMode = 'clean'; // 'clean' | 'pnginfo'
+
+  /* ==========================================
+     DOM REFS
+     ========================================== */
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const grid = document.getElementById('imageGrid');
+  const toolbar = document.getElementById('toolbar');
+  const imageCount = document.getElementById('imageCount');
+  const statTotal = document.getElementById('statTotal');
+  const statProcessed = document.getElementById('statProcessed');
+  const statSaved = document.getElementById('statSaved');
+  const clearAllBtn = document.getElementById('clearAllBtn');
+  const downloadOneByOneBtn = document.getElementById('downloadOneByOneBtn');
+  const downloadAllBtn = document.getElementById('downloadAllBtn');
+  const progressOverlay = document.getElementById('progressOverlay');
+  const progressTitle = document.getElementById('progressTitle');
+  const progressDesc = document.getElementById('progressDesc');
+  const progressFill = document.getElementById('progressFill');
+  const toastContainer = document.getElementById('toastContainer');
+  const dropTitle = document.getElementById('dropTitle');
+  const dropSub = document.getElementById('dropSub');
+  const dropFormats = document.getElementById('dropFormats');
+
+  // Modal
+  const metaModal = document.getElementById('metaModal');
+  const modalCloseBtn = document.getElementById('modalCloseBtn');
+  const modalTitle = document.getElementById('modalTitle');
+  const metaParsedView = document.getElementById('metaParsedView');
+  const metaChunksView = document.getElementById('metaChunksView');
+
+  const modeBtns = document.querySelectorAll('.mode-btn');
+
+  /* ==========================================
+     HELPERS
+     ========================================== */
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  function getExtension(mime) {
+    const map = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/bmp': 'bmp' };
+    return map[mime] || 'png';
+  }
+
+  function getBaseName(name) {
+    const dot = name.lastIndexOf('.');
+    return dot > 0 ? name.slice(0, dot) : name;
+  }
+
+  function showToast(msg, type) {
+    const el = document.createElement('div');
+    el.className = `toast ${type || 'success'}`;
+    el.textContent = msg;
+    toastContainer.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+  }
+
+  function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function updateStats() {
+    const total = images.length;
+    const processed = images.filter(i => i.cleanedBlob).length;
+    const saved = images.reduce((acc, i) => {
+      if (i.cleanedBlob) return acc + (i.originalSize - i.cleanedSize);
+      return acc;
+    }, 0);
+    statTotal.textContent = total;
+    statProcessed.textContent = processed;
+    statSaved.textContent = formatSize(Math.max(0, saved));
+    imageCount.textContent = total;
+    toolbar.style.display = total > 0 ? 'flex' : 'none';
+    downloadAllBtn.disabled = processed === 0;
+    downloadOneByOneBtn.disabled = processed === 0;
+  }
+
+  function updateDropZoneForMode() {
+    if (currentMode === 'pnginfo') {
+      dropTitle.innerHTML = '拖拽 <span>PNG</span> 图片到此处，查看元数据';
+      dropSub.textContent = '仅支持 PNG 格式，支持 A1111 / ComfyUI 等工具生成的图片';
+      dropFormats.innerHTML = '<span>PNG</span>';
+      fileInput.accept = 'image/png';
+      fileInput.multiple = false;
+    } else {
+      dropTitle.innerHTML = '拖拽图片到此处，或 <span>点击选择</span>';
+      dropSub.textContent = '图片仅在你的浏览器中处理，不会上传至任何服务器';
+      dropFormats.innerHTML = '<span>PNG</span><span>JPG</span><span>JPEG</span><span>WEBP</span><span>BMP</span>';
+      fileInput.accept = 'image/*';
+      fileInput.multiple = true;
+    }
+  }
+
+  /* ==========================================
+     MODE SWITCH
+     ========================================== */
+  modeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      modeBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentMode = btn.dataset.mode;
+      updateDropZoneForMode();
+      // Clear current images when switching mode
+      if (images.length > 0) {
+        clearAll();
+        showToast(`已切换到「${currentMode === 'clean' ? '批量净化' : 'PNG Info 查看'}」模式`);
+      }
+    });
+  });
+
+  /* ==========================================
+     FILE INPUT
+     ========================================== */
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      addImages(fileInput.files);
+      fileInput.value = '';
+    }
+  });
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+  });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      addImages(e.dataTransfer.files);
+    }
+  });
+  document.addEventListener('dragover', (e) => e.preventDefault());
+  document.addEventListener('drop', (e) => e.preventDefault());
+
+  /* ==========================================
+     ADD IMAGES
+     ========================================== */
+  function addImages(fileList) {
+    const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0) {
+      showToast('未找到有效的图片文件', 'error');
+      return;
+    }
+
+    // PNG Info mode: only accept PNG, single file
+    if (currentMode === 'pnginfo') {
+      if (files.length > 1 || !files[0].type.startsWith('image/png')) {
+        showToast('PNG Info 模式仅支持单张 PNG 图片', 'error');
+        return;
+      }
+      // In PNG Info mode, clear previous images first
+      if (images.length > 0) clearAll();
+    }
+
+    const empty = grid.querySelector('.empty-state');
+    if (empty) empty.remove();
+
+    files.forEach((file, idx) => {
+      const id = ++idCounter;
+      const entry = {
+        id, file,
+        originalSize: file.size,
+        cleanedBlob: null,
+        cleanedSize: 0,
+        name: file.name,
+        dataUrl: URL.createObjectURL(file),
+        pngChunks: null,
+        pngParams: null,
+      };
+      images.push(entry);
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = id;
+      card.style.animationDelay = `${idx * 0.06}s`;
+
+      const isPNG = file.type === 'image/png';
+
+      // Action buttons HTML
+      let actionsHTML = `
+        <button class="btn btn-outline btn-sm download-single" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          下载
+        </button>`;
+      if (isPNG) {
+        actionsHTML += `
+        <button class="btn btn-blue btn-sm meta-btn meta-view-btn">
+          🔍 元数据
+        </button>`;
+      }
+      actionsHTML += `
+        <button class="btn btn-danger btn-sm remove-single">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          移除
+        </button>`;
+
+      card.innerHTML = `
+        <div class="preview">
+          <img src="${entry.dataUrl}" alt="${file.name}">
+          <div class="status-badge">⏳ 处理中</div>
+        </div>
+        <div class="info">
+          <div class="name" title="${file.name}">${file.name}</div>
+          <div class="sizes">
+            <span class="size-original">原 ${formatSize(file.size)}</span>
+            <span class="size-arrow">→</span>
+            <span class="size-cleaned">—</span>
+          </div>
+          <div class="actions">${actionsHTML}</div>
+        </div>
+      `;
+      grid.appendChild(card);
+
+      // Process
+      processFile(entry, card);
+      updateStats();
+    });
+  }
+
+  /* ==========================================
+     PROCESS FILE
+     ========================================== */
+  async function processFile(entry, card) {
+    const badge = card.querySelector('.status-badge');
+    const cleanedEl = card.querySelector('.size-cleaned');
+    const dlBtn = card.querySelector('.download-single');
+    const metaBtn = card.querySelector('.meta-view-btn');
+
+    try {
+      // Step 1: Strip metadata (binary-level)
+      const { blob, mime } = await stripMetadata(entry.file);
+      entry.cleanedBlob = blob;
+      entry.cleanedSize = blob.size;
+
+      badge.textContent = '✓ 已净化';
+      cleanedEl.textContent = formatSize(blob.size);
+      dlBtn.disabled = false;
+      dlBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        downloadSingle(entry);
+      });
+      updateStats();
+      showToast(`${entry.name} 净化完成`);
+
+      // Step 2: For PNGs, also extract metadata
+      if (entry.file.type === 'image/png') {
+        try {
+          const buffer = await entry.file.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          const chunks = parseChunks(bytes);
+          entry.pngChunks = chunks;
+          entry.pngParams = extractPNGParams(chunks);
+        } catch (e) {
+          // PNG parsing failed, that's ok
+          console.warn('PNG metadata parsing failed:', e);
+        }
+      }
+
+      // Wire meta button
+      if (metaBtn) {
+        metaBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openMetaModal(entry);
+        });
+      }
+    } catch (err) {
+      badge.textContent = '✗ 处理失败';
+      badge.style.borderColor = 'rgba(255,71,87,0.3)';
+      badge.style.background = 'rgba(255,71,87,0.15)';
+      badge.style.color = '#ff4757';
+      console.error(err);
+      updateStats();
+    }
+
+    // Remove button
+    const rmBtn = card.querySelector('.remove-single');
+    if (rmBtn) {
+      rmBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeImage(entry.id);
+      });
+    }
+  }
+
+  /* ==========================================
+     METADATA STRIPPING (from 隐私净化站)
+     ========================================== */
+  function stripJPEGBinary(buffer) {
+    const data = new Uint8Array(buffer);
+    const segments = [];
+    let i = 0;
+    segments.push(data.subarray(0, 2));
+    i = 2;
+    while (i < data.length) {
+      if (data[i] !== 0xFF) break;
+      const marker = data[i + 1];
+      if (marker === 0xDA) {
+        const segLen = ((data[i + 2] << 8) | data[i + 3]) + 2;
+        segments.push(data.subarray(i, i + segLen));
+        i += segLen;
+        const start = i;
+        while (i < data.length - 1) {
+          if (data[i] === 0xFF) {
+            if (data[i + 1] === 0x00) { i += 2; }
+            else if (data[i + 1] === 0xD9) {
+              segments.push(data.subarray(start, i));
+              segments.push(data.subarray(i, i + 2));
+              i += 2; break;
+            } else { i++; }
+          } else { i++; }
+        }
+        break;
+      }
+      if (marker === 0xD8 || marker === 0xD9 || marker === 0x00) {
+        if (marker === 0xD9) { segments.push(data.subarray(i, i + 2)); break; }
+        i += 2; continue;
+      }
+      const segLen = ((data[i + 2] << 8) | data[i + 3]) + 2;
+      if (marker === 0xE1 || marker === 0xE2 || marker === 0xED || marker === 0xFE) {
+        i += segLen; continue;
+      }
+      segments.push(data.subarray(i, i + segLen));
+      i += segLen;
+    }
+    if (i < data.length) segments.push(data.subarray(i));
+    const totalLen = segments.reduce((a, s) => a + s.length, 0);
+    const result = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const seg of segments) { result.set(seg, offset); offset += seg.length; }
+    return new Blob([result], { type: 'image/jpeg' });
+  }
+
+  function stripPNGBinary(buffer) {
+    const data = new Uint8Array(buffer);
+    const out = [];
+    out.push(data.subarray(0, 8));
+    let i = 8;
+    while (i + 8 <= data.length) {
+      const length = (data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3];
+      const type = String.fromCharCode(data[i + 4], data[i + 5], data[i + 6], data[i + 7]);
+      const chunkLen = 12 + length;
+      if (i + chunkLen > data.length) break;
+      const ancillary = ['tEXt','iTXt','zTXt','gAMA','cHRM','sRGB','iCCP','bKGD','pHYs','sBIT','sPLT','hIST','tIME','oFFs','pCAL','sCAL'];
+      if (ancillary.includes(type)) { i += chunkLen; continue; }
+      out.push(data.subarray(i, i + chunkLen));
+      i += chunkLen;
+      if (type === 'IEND') break;
+    }
+    if (i < data.length) out.push(data.subarray(i));
+    const totalLen = out.reduce((a, s) => a + s.length, 0);
+    const result = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const seg of out) { result.set(seg, offset); offset += seg.length; }
+    return new Blob([result], { type: 'image/png' });
+  }
+
+  function stripWebPBinary(buffer) {
+    const data = new Uint8Array(buffer);
+    const out = [];
+    out.push(data.subarray(0, 12));
+    let i = 12;
+    while (i + 8 <= data.length) {
+      const chunkType = String.fromCharCode(data[i], data[i+1], data[i+2], data[i+3]);
+      const chunkSize = data[i+4] | (data[i+5] << 8) | (data[i+6] << 16) | (data[i+7] << 24);
+      const paddedSize = chunkSize + (chunkSize & 1);
+      const chunkLen = 8 + paddedSize;
+      if (i + chunkLen > data.length) break;
+      if (chunkType === 'EXIF' || chunkType === 'XMP ') { i += chunkLen; continue; }
+      out.push(data.subarray(i, i + chunkLen));
+      i += chunkLen;
+    }
+    if (i < data.length) out.push(data.subarray(i));
+    const totalLen = out.reduce((a, s) => a + s.length, 0);
+    const result = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const seg of out) { result.set(seg, offset); offset += seg.length; }
+    return new Blob([result], { type: 'image/webp' });
+  }
+
+  function stripViaCanvas(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) resolve({ blob, mime: 'image/png' });
+          else reject(new Error('Canvas toBlob failed'));
+        }, 'image/png');
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片加载失败')); };
+      img.src = url;
+    });
+  }
+
+  async function stripMetadata(file) {
+    try {
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer.slice(0, 16));
+      if (bytes[0] === 0xFF && bytes[1] === 0xD8) return { blob: stripJPEGBinary(buffer), mime: 'image/jpeg' };
+      if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return { blob: stripPNGBinary(buffer), mime: 'image/png' };
+      if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50)
+        return { blob: stripWebPBinary(buffer), mime: 'image/webp' };
+      return stripViaCanvas(file);
+    } catch (e) {
+      console.warn('Binary stripping failed, falling back to canvas:', e);
+      return stripViaCanvas(file);
+    }
+  }
+
+  /* ==========================================
+     PNG INFO PARSER (from PNG Info)
+     ========================================== */
+  function parseChunks(bytes) {
+    const sig = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    for (let i = 0; i < 8; i++) { if (bytes[i] !== sig[i]) throw new Error('不是有效的 PNG 文件'); }
+    const chunks = [];
+    let pos = 8;
+    const decoder = new TextDecoder('utf-8');
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    while (pos + 8 <= bytes.length) {
+      const length = view.getUint32(pos, false);
+      const type = decoder.decode(bytes.slice(pos + 4, pos + 8));
+      if (pos + 12 + length > bytes.length) break;
+      const data = bytes.slice(pos + 8, pos + 8 + length);
+      const crc = bytes.slice(pos + 8 + length, pos + 12 + length);
+      const parsed = { type, length, crc: Array.from(crc).map(b => b.toString(16).padStart(2,'0')).join(' ') };
+      if (type === 'IHDR' && length >= 13) {
+        parsed.width = view.getUint32(pos + 8, false);
+        parsed.height = view.getUint32(pos + 12, false);
+        parsed.bitDepth = data[8]; parsed.colorType = data[9];
+        parsed.compression = data[10]; parsed.filter = data[11]; parsed.interlace = data[12];
+        parsed.colorTypeName = ['灰度','真彩色','索引色','灰度+Alpha','真彩色+Alpha'][parsed.colorType] || '未知';
+      }
+      if (type === 'tEXt') {
+        const nullIdx = data.indexOf(0);
+        parsed.key = nullIdx >= 0 ? decoder.decode(data.slice(0, nullIdx)) : decoder.decode(data);
+        parsed.value = nullIdx >= 0 ? decoder.decode(data.slice(nullIdx + 1)) : '';
+      }
+      if (type === 'zTXt') {
+        const nullIdx = data.indexOf(0);
+        parsed.key = nullIdx >= 0 ? decoder.decode(data.slice(0, nullIdx)) : decoder.decode(data);
+        if (nullIdx >= 0) parsed.compressionMethod = data[nullIdx + 1];
+        parsed.value = '(压缩数据, ' + length + ' 字节)';
+      }
+      if (type === 'iTXt') {
+        let off = 0;
+        const null1 = data.indexOf(0, off); parsed.key = decoder.decode(data.slice(off, null1)); off = null1 + 1;
+        parsed.compressionFlag = data[off]; parsed.compressionMethod = data[off + 1]; off += 2;
+        const null2 = data.indexOf(0, off); const lang = decoder.decode(data.slice(off, null2)); off = null2 + 1;
+        const null3 = data.indexOf(0, off); const transKey = decoder.decode(data.slice(off, null3)); off = null3 + 1;
+        parsed.value = parsed.compressionFlag === 0 ? decoder.decode(data.slice(off)) : '(压缩数据, ' + (data.length - off) + ' 字节)';
+        parsed.language = lang; parsed.translatedKey = transKey;
+      }
+      if (type === 'gAMA') { parsed.gamma = view.getUint32(pos + 8, false) / 100000; }
+      if (type === 'pHYs') {
+        parsed.ppuX = view.getUint32(pos + 8, false); parsed.ppuY = view.getUint32(pos + 12, false); parsed.unit = data[8];
+      }
+      chunks.push(parsed);
+      pos += 12 + length;
+    }
+    return chunks;
+  }
+
+  function extractPNGParams(chunks) {
+    const textChunks = chunks.filter(c => (c.type === 'tEXt' || c.type === 'iTXt') && c.key && c.value);
+    return {
+      params: textChunks.find(c => c.key === 'parameters'),
+      workflow: textChunks.find(c => c.key === 'workflow'),
+      prompt: textChunks.find(c => c.key === 'prompt'),
+      others: textChunks.filter(c => !['parameters','workflow','prompt'].includes(c.key)),
+      rawChunks: chunks,
+    };
+  }
+
+  /* ==========================================
+     A1111 PARAMETER PARSER
+     ========================================== */
+  function parseA1111Params(raw) {
+    const result = { raw, prompt: '', negativePrompt: '', params: {} };
+    let text = raw;
+    const negIdx = text.indexOf('Negative prompt:');
+    if (negIdx >= 0) {
+      result.prompt = text.substring(0, negIdx).trim();
+      text = text.substring(negIdx + 'Negative prompt:'.length);
+    } else {
+      const lines = text.split('\n');
+      if (lines.length > 1 && /^(Steps|Step|Sampler|CFG|Seed|Size|Model|ENSD)/i.test(lines[lines.length-1])) {
+        result.prompt = lines.slice(0, -1).join('\n').trim();
+        text = lines[lines.length-1];
+      } else {
+        result.prompt = raw; return result;
+      }
+    }
+    const paramStartPattern = /^(?:Steps|Step|Sampler|CFG|CFG scale|Seed|Size|Model|ENSD|Clip skip|Hires|Denoising|Variation|Eta)/im;
+    const lines = text.split('\n');
+    let paramLineIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (paramStartPattern.test(lines[i].trim())) { paramLineIdx = i; break; }
+    }
+    if (paramLineIdx >= 0) {
+      result.negativePrompt = lines.slice(0, paramLineIdx).join('\n').trim();
+      const paramsText = lines.slice(paramLineIdx).join('\n');
+      const parts = splitParams(paramsText);
+      parts.forEach(p => {
+        const colonIdx = p.indexOf(':');
+        if (colonIdx > 0) {
+          const key = p.substring(0, colonIdx).trim();
+          const val = p.substring(colonIdx + 1).trim();
+          if (key && val) result.params[key] = val;
+        }
+      });
+    } else {
+      result.negativePrompt = text.trim();
+    }
+    return result;
+  }
+
+  function splitParams(text) {
+    const parts = []; let depth = 0; let current = '';
+    for (const ch of text) {
+      if (ch === '(' || ch === '[' || ch === '{') depth++;
+      else if (ch === ')' || ch === ']' || ch === '}') depth--;
+      if (ch === ',' && depth === 0) { parts.push(current.trim()); current = ''; }
+      else { current += ch; }
+    }
+    if (current.trim()) parts.push(current.trim());
+    return parts;
+  }
+
+  /* ==========================================
+     RENDER MODAL — PARSED
+     ========================================== */
+  function renderParsedMeta(pngParams) {
+    const { params: paramsChunk, workflow, prompt, others } = pngParams;
+    if (!paramsChunk && !workflow && !prompt && !others.length) {
+      return '<div class="modal-no-meta"><div class="icon">📭</div><p>此图片中未找到 AI 生成参数元数据。</p></div>';
+    }
+    let html = '';
+
+    // A1111
+    if (paramsChunk) {
+      const parsed = parseA1111Params(paramsChunk.value);
+      // Prompt
+      if (parsed.prompt) {
+        const pid = 'modal-prompt';
+        html += `<div class="param-section"><h3>正向提示词</h3><div class="param-prompt"><button class="copy-btn" data-target="${pid}">复制</button><span id="${pid}">${escHtml(parsed.prompt)}</span></div></div>`;
+      }
+      if (parsed.negativePrompt) {
+        const nid = 'modal-neg';
+        html += `<div class="param-section"><h3>反向提示词</h3><div class="param-prompt"><button class="copy-btn" data-target="${nid}">复制</button><span id="${nid}">${escHtml(parsed.negativePrompt)}</span></div></div>`;
+      }
+      const paramKeys = Object.keys(parsed.params);
+      if (paramKeys.length) {
+        const orderedKeys = ['Steps','Step','Sampler','CFG scale','CFG','Seed','Size','Model','Model hash','Hypernet','Hypernet strength','Variation seed','Variation seed strength','Seed resize from','Denoising strength','Conditional mask weight','Eta','Clip skip','ENSD','Hires upscale','Hires upscaler','Hires steps','ControlNet 0','ControlNet 1','ControlNet 2','ControlNet 3','Lora','LoRA','Version','Hashes'];
+        const sorted = paramKeys.sort((a,b) => {
+          const ia = orderedKeys.indexOf(a), ib = orderedKeys.indexOf(b);
+          if (ia>=0 && ib>=0) return ia-ib;
+          if (ia>=0) return -1; if (ib>=0) return 1;
+          return a.localeCompare(b);
+        });
+        html += '<div class="param-section"><h3>生成参数</h3><div class="param-grid">';
+        sorted.forEach(key => {
+          let cls = '';
+          if (key === 'Seed' || key === 'CFG scale' || key === 'CFG') cls = 'accent';
+          if (key === 'Steps' || key === 'Step') cls = 'green';
+          if (key === 'Model' || key === 'Model hash') cls = 'amber';
+          html += `<div class="param-item"><div class="label">${escHtml(key)}</div><div class="value ${cls}">${escHtml(parsed.params[key])}</div></div>`;
+        });
+        html += '</div></div>';
+      }
+      if (parsed.raw) {
+        const rid = 'modal-raw';
+        html += `<div class="param-section"><h3>原始参数字符串</h3><div class="param-prompt"><button class="copy-btn" data-target="${rid}">复制</button><span id="${rid}" style="font-size:12px;color:var(--text-dim);">${escHtml(parsed.raw)}</span></div></div>`;
+      }
+    }
+
+    // ComfyUI
+    if (workflow) html += renderComfyJSON('ComfyUI Workflow', workflow.value);
+    if (prompt) html += renderComfyJSON('ComfyUI Prompt', prompt.value);
+
+    // Others
+    if (others.length) {
+      html += '<div class="param-section"><h3>其他文本元数据</h3>';
+      others.forEach(c => {
+        html += `<div class="param-prompt" style="margin-bottom:8px"><strong style="color:var(--accent-blue);font-size:12px;">${escHtml(c.key)}</strong><pre style="margin-top:6px;font-family:JetBrains Mono,monospace;font-size:12px;color:var(--text-dim);white-space:pre-wrap;">${escHtml(c.value)}</pre></div>`;
+      });
+      html += '</div>';
+    }
+
+    return html;
+  }
+
+  function renderComfyJSON(title, jsonStr) {
+    let formatted = jsonStr;
+    try { const obj = JSON.parse(jsonStr); formatted = JSON.stringify(obj, null, 2); } catch(e) {}
+    const id = 'modal-comfy-' + title.replace(/\s+/g, '-').toLowerCase();
+    return `<div class="param-section comfy-section"><h3>${escHtml(title)}</h3><div class="param-prompt"><button class="copy-btn" data-target="${id}">复制</button><pre id="${id}" style="font-family:JetBrains Mono,monospace;font-size:12px;line-height:1.6;color:var(--text-dim);white-space:pre-wrap;max-height:400px;overflow:auto;">${escHtml(formatted)}</pre></div></div>`;
+  }
+
+  /* ==========================================
+     RENDER MODAL — RAW CHUNKS
+     ========================================== */
+  function renderRawChunks(chunks) {
+    if (!chunks || !chunks.length) {
+      return '<div class="modal-no-meta"><p>未找到任何 chunk</p></div>';
+    }
+    let html = '<div class="chunks-list">';
+    chunks.forEach((chunk, idx) => {
+      let tag = '';
+      const meta = ['tEXt','zTXt','iTXt','gAMA','cHRM','sRGB','iCCP','eXIf'];
+      if (meta.includes(chunk.type)) tag = '<span class="chunk-tag meta">元数据</span>';
+      else if (['IHDR','IDAT','IEND'].includes(chunk.type)) tag = '<span class="chunk-tag image">结构</span>';
+
+      let valHtml = '';
+      if (chunk.type === 'IHDR') {
+        valHtml = `宽度: ${chunk.width}\n高度: ${chunk.height}\n位深: ${chunk.bitDepth}\n颜色类型: ${chunk.colorType} (${chunk.colorTypeName})\n压缩: ${chunk.compression}\n滤波: ${chunk.filter}\n交错: ${chunk.interlace}`;
+      } else if ((chunk.type === 'tEXt' || chunk.type === 'iTXt') && chunk.value !== undefined) {
+        valHtml = chunk.value;
+      } else if (chunk.type === 'zTXt') {
+        valHtml = '(压缩数据, 原始长度 ' + chunk.length + ' 字节)';
+      } else if (chunk.type === 'gAMA') {
+        valHtml = 'Gamma: ' + chunk.gamma;
+      } else if (chunk.type === 'pHYs') {
+        valHtml = `X轴像素密度: ${chunk.ppuX}\nY轴像素密度: ${chunk.ppuY}\n单位: ${chunk.unit === 1 ? '米' : '未知'}`;
+      } else {
+        const hex = Array.from(new Uint8Array(chunk.length)).slice(0, 64).map(b => b.toString(16).padStart(2,'0')).join(' ');
+        valHtml = `十六进制数据 (前 64 字节):\n${hex}${chunk.length > 64 ? '\n...' : ''}`;
+      }
+
+      html += `<div class="chunk-card" data-idx="${idx}">
+        <div class="chunk-header">
+          <span class="chunk-name">${chunk.type}</span>
+          <span class="chunk-length">${chunk.length} 字节</span>
+          ${tag}
+          <span class="chunk-arrow">▼</span>
+        </div>
+        <div class="chunk-body">
+          ${(chunk.type === 'tEXt' || chunk.type === 'iTXt' || chunk.type === 'zTXt') && chunk.key ? `<div class="chunk-key"><strong>Key:</strong> ${escHtml(chunk.key)}</div>` : ''}
+          <pre>${escHtml(valHtml)}</pre>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+    return html;
+  }
+
+  /* ==========================================
+     MODAL
+     ========================================== */
+  function openMetaModal(entry) {
+    modalTitle.textContent = `${entry.name} · 元数据`;
+    if (entry.pngChunks) {
+      // Render parsed
+      metaParsedView.innerHTML = renderParsedMeta(entry.pngParams);
+      // Render chunks
+      metaChunksView.innerHTML = renderRawChunks(entry.pngChunks);
+      // Wire copy buttons
+      metaParsedView.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = document.getElementById(btn.dataset.target);
+          if (target) {
+            navigator.clipboard.writeText(target.textContent).then(() => {
+              btn.textContent = '已复制';
+              btn.classList.add('copied');
+              setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('copied'); }, 1800);
+            }).catch(() => showToast('复制失败', 'error'));
+          }
+        });
+      });
+      // Wire chunk expand/collapse
+      metaChunksView.querySelectorAll('.chunk-header').forEach(hdr => {
+        hdr.addEventListener('click', () => {
+          hdr.closest('.chunk-card').classList.toggle('expanded');
+        });
+      });
+    } else {
+      metaParsedView.innerHTML = '<div class="modal-no-meta"><div class="icon">📭</div><p>此图片不是 PNG 格式，或未找到元数据信息。</p></div>';
+      metaChunksView.innerHTML = '<div class="modal-no-meta"><p>无可用数据</p></div>';
+    }
+    metaModal.classList.add('active');
+    // Reset to first tab
+    document.querySelectorAll('.meta-tabs button').forEach((b, i) => {
+      b.classList.toggle('active', i === 0);
+    });
+    document.querySelectorAll('.meta-tab-content').forEach((tc, i) => {
+      tc.classList.toggle('active', i === 0);
+    });
+  }
+
+  function closeMetaModal() {
+    metaModal.classList.remove('active');
+  }
+
+  modalCloseBtn.addEventListener('click', closeMetaModal);
+  metaModal.addEventListener('click', (e) => {
+    if (e.target === metaModal) closeMetaModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && metaModal.classList.contains('active')) closeMetaModal();
+  });
+
+  // Meta tabs
+  document.querySelectorAll('.meta-tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.meta-tabs button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.meta-tab-content').forEach(tc => tc.classList.remove('active'));
+      document.getElementById('metaTab' + btn.dataset.metaTab.charAt(0).toUpperCase() + btn.dataset.metaTab.slice(1)).classList.add('active');
+    });
+  });
+
+  /* ==========================================
+     DOWNLOAD / REMOVE
+     ========================================== */
+  function downloadSingle(entry) {
+    if (!entry.cleanedBlob) return;
+    const ext = getExtension(entry.cleanedBlob.type);
+    const name = `${getBaseName(entry.name)}_purified.${ext}`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(entry.cleanedBlob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast(`${name} 已下载（无元数据）`);
+  }
+
+  function removeImage(id) {
+    const idx = images.findIndex(i => i.id === id);
+    if (idx > -1) {
+      URL.revokeObjectURL(images[idx].dataUrl);
+      if (images[idx].cleanedBlob) URL.revokeObjectURL(URL.createObjectURL(images[idx].cleanedBlob));
+      images.splice(idx, 1);
+    }
+    const card = grid.querySelector(`.card[data-id="${id}"]`);
+    if (card) card.remove();
+    updateStats();
+    if (images.length === 0) {
+      grid.innerHTML = `<div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <h3>暂无图片，拖拽或点击上方区域开始</h3>
+      </div>`;
+    }
+  }
+
+  function clearAll() {
+    images.forEach(i => {
+      URL.revokeObjectURL(i.dataUrl);
+      if (i.cleanedBlob) URL.revokeObjectURL(URL.createObjectURL(i.cleanedBlob));
+    });
+    images = [];
+    grid.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <h3>暂无图片，拖拽或点击上方区域开始</h3>
+    </div>`;
+    updateStats();
+    showToast('已清空列表');
+  }
+
+  async function downloadOneByOne() {
+    const processed = images.filter(i => i.cleanedBlob);
+    if (processed.length === 0) { showToast('没有已净化的图片可供下载', 'error'); return; }
+    downloadOneByOneBtn.disabled = true;
+    for (const entry of processed) {
+      const ext = getExtension(entry.cleanedBlob.type);
+      const name = `${getBaseName(entry.name)}_purified.${ext}`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(entry.cleanedBlob);
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      await new Promise(r => setTimeout(r, 300));
+    }
+    downloadOneByOneBtn.disabled = false;
+    showToast(`已逐个下载全部 ${processed.length} 张无元数据图片`);
+  }
+
+  async function downloadAll() {
+    const processed = images.filter(i => i.cleanedBlob);
+    if (processed.length === 0) { showToast('没有已净化的图片可供下载', 'error'); return; }
+    progressOverlay.classList.add('active');
+    progressTitle.textContent = '正在打包...';
+    progressDesc.textContent = `处理 ${processed.length} 张图片`;
+    progressFill.style.width = '0%';
+    try {
+      const zip = new JSZip();
+      let completed = 0;
+      for (const entry of processed) {
+        const ext = getExtension(entry.cleanedBlob.type);
+        const name = `${getBaseName(entry.name)}_purified.${ext}`;
+        const ab = await entry.cleanedBlob.arrayBuffer();
+        zip.file(name, ab);
+        completed++;
+        progressFill.style.width = `${(completed / processed.length) * 100}%`;
+        progressDesc.textContent = `正在添加 ${name}`;
+      }
+      progressDesc.textContent = '正在生成 ZIP 文件...';
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      saveAs(zipBlob, `purified_images_${new Date().toISOString().slice(0,10)}.zip`);
+      showToast(`成功下载 ${processed.length} 张无元数据图片`);
+    } catch (err) {
+      console.error(err);
+      showToast('打包下载失败: ' + err.message, 'error');
+    } finally {
+      progressOverlay.classList.remove('active');
+    }
+  }
+
+  clearAllBtn.addEventListener('click', clearAll);
+  downloadOneByOneBtn.addEventListener('click', downloadOneByOne);
+  downloadAllBtn.addEventListener('click', downloadAll);
+
+  /* ==========================================
+     INIT
+     ========================================== */
+  updateDropZoneForMode();
+  updateStats();
+})();
+</script>
+</body>
+</html>
