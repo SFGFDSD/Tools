@@ -22,8 +22,6 @@
       padding: 4rem 2rem 3rem;
     }
 
-    .main-container { width: 100%; max-width: 1240px; margin: 0 auto; position: relative; }
-
     .header { text-align: center; margin-bottom: 1.5rem; position: relative; }
 
     .title-row {
@@ -52,10 +50,10 @@
 
     .brush { display: none; }
 
-    .list-head { display: flex; align-items: center; justify-content: center; gap: 1.1rem; margin: 3.1rem 0 1.9rem; }
+    /* 装饰线 */
+    .list-head { display: flex; align-items: center; justify-content: center; gap: 0; margin: 3.1rem 0 1.9rem; }
     .lh-line { height: 1px; width: min(120px, 14vw); background: linear-gradient(90deg, transparent, #2c2c2a); }
     .lh-line.r { background: linear-gradient(90deg, #2c2c2a, transparent); }
-    .lh-text { font-size: .78rem; letter-spacing: .3em; text-indent: .3em; color: #6a6a68; white-space: nowrap; font-weight: 300; }
 
     .tools-grid {
       display: grid;
@@ -63,7 +61,7 @@
       gap: 2px;
     }
 
-    /* 动画 */
+ 
     .tool-card {
       position: relative;
       display: flex;
@@ -173,7 +171,7 @@
       border-radius: 6px;
     }
 
- 
+
 
     @media (max-width: 700px) {
       body { padding: 2.5rem 1rem 2rem; }
@@ -189,10 +187,9 @@
   </style>
 </head>
 <body>
-  <div class="main-container">
-    <header class="header">
+  <header class="header">
       <div class="title-row">
-        <h1>万能超级工具箱</h1>
+        <h1>工具</h1>
         <span class="seal" aria-hidden="true">利其器</span>
       </div>
       <p class="subtitle">一站式访问所有实用网页工具 · 点击卡片立即使用</p>
@@ -205,7 +202,6 @@
 
     <div class="list-head">
       <span class="lh-line"></span>
-      <span class="lh-text">器物清单 · 共<span id="toolCount">12</span>器</span>
       <span class="lh-line r"></span>
     </div>
 
@@ -220,7 +216,6 @@
       </div>
       <p>JISHENG OS · 工欲善其事 必先利其器</p>
     </footer>
-  </div>
 
   <noscript>
     <div class="noscript-note">
@@ -242,12 +237,6 @@
         file: "Markdown 编辑器.html",
         description: "沉浸式 Markdown 书写与实时预览，极简优雅。",
         tag: "写作"
-      },
-      {
-        name: "README.md 生成器",
-        file: "README.md",
-        description: "智能创建项目 README，开发文档一键生成。",
-        tag: "开发"
       },
       {
         name: "ZIP 时区修正",
@@ -308,6 +297,12 @@
         file: "图片元数据擦除查看.html",
         description: "查看并一键擦除图片 EXIF 元数据，隐私保护一步到位。",
         tag: "隐私"
+      },
+      {
+        name: "入口页管理器",
+        file: "入口页管理器.html",
+        description: "导入最新入口页，添加与管理工具卡片，一键导出更新版。",
+        tag: "管理"
       }
     ];
 
