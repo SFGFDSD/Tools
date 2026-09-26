@@ -1,727 +1,951 @@
-<!-- JISHENG-OS-APP: {"name":"ZIP 时区修正","width":960,"height":750,"icon":"<svg class='icon-svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 9H3v11a1 1 0 001 1h16a1 1 0 001-1V9z'/><path d='M3 9l2-5h14l2 5'/><circle cx='12' cy='15' r='3.5'/><path d='M12 13.5V15l1.3 1'/><path d='M7 6h10' stroke-dasharray='2 1.5'/></svg>"} -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZIP 时区修正工具</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZipTimeFix 网页版 —— 修谷歌云盘 ZIP 的时间（北京少 15/16 小时）</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #0b0f1a;
-    --bg-card: rgba(255, 255, 255, 0.03);
-    --bg-card-hover: rgba(255, 255, 255, 0.06);
-    --border: rgba(255, 255, 255, 0.08);
-    --border-active: rgba(212, 148, 58, 0.5);
-    --text: #e8e8ed;
-    --text-dim: #7a7f8c;
-    --text-muted: #555a66;
-    --accent: #d4943a;
-    --accent-glow: rgba(212, 148, 58, 0.25);
-    --accent-soft: rgba(212, 148, 58, 0.12);
-    --danger: #e85a5a;
-    --danger-soft: rgba(232, 90, 90, 0.12);
-    --success: #4caf7d;
-    --success-soft: rgba(76, 175, 125, 0.12);
-    --info: #5b9bd5;
-    --info-soft: rgba(91, 155, 213, 0.12);
-    --radius: 12px;
-    --radius-sm: 8px;
-    --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#e2e5ea; --ink:#1b1f24; --dim:#5f6b7a;
+    --accent:#1f6feb; --ok:#0a7d3c; --warn:#9a6700; --bad:#b42318; --code:#f3f4f6;
   }
-
-  body {
-    font-family: var(--font-sans);
-    background: var(--bg);
-    background-image:
-      radial-gradient(ellipse 80% 60% at 50% -20%, rgba(212, 148, 58, 0.06), transparent),
-      radial-gradient(ellipse 60% 50% at 80% 100%, rgba(212, 148, 58, 0.04), transparent);
-    color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 40px 24px 60px;
-    line-height: 1.6;
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:15px/1.6 -apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+    padding:28px 18px 60px;
   }
-
-  .header {
-    text-align: center;
-    max-width: 620px;
-    margin-bottom: 40px;
+  .wrap{max-width:1000px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 6px;letter-spacing:.2px}
+  .sub{color:var(--dim);font-size:13.5px;margin:0 0 18px}
+  .sub code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  h2{font-size:15px;margin:0 0 12px;font-weight:600}
+  h2 .n{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:50%;
+    background:var(--accent);color:#fff;font-size:12px;margin-right:8px;vertical-align:1px}
+  /* 拖放区 */
+  #dropzone{
+    border:2px dashed #c3cad4;border-radius:12px;background:#fbfcfd;
+    padding:30px 20px;text-align:center;cursor:pointer;transition:.15s;
   }
-  .header-icon {
-    width: 56px; height: 56px;
-    border-radius: 16px;
-    background: var(--accent-soft);
-    border: 1px solid var(--border-active);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20px;
-    font-size: 26px;
+  #dropzone.over{border-color:var(--accent);background:#eef4ff}
+  #dropzone .big{font-size:16px;font-weight:600;margin-bottom:6px}
+  #dropzone .small{color:var(--dim);font-size:13px}
+  .steps{margin:14px 0 0;padding:0;list-style:none;color:var(--dim);font-size:13px}
+  .steps li{margin:3px 0}
+  .steps b{color:var(--ink);font-weight:600}
+  /* 选项 */
+  .opts{display:flex;flex-wrap:wrap;gap:14px 22px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  .opt{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--dim)}
+  .opt select,.opt input[type=number],.opt input[type=text]{
+    font:13.5px/1.4 inherit;color:var(--ink);background:#fff;border:1px solid var(--line);
+    border-radius:7px;padding:5px 8px;outline:none
   }
-  .header h1 {
-    font-size: 28px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    margin-bottom: 8px;
+  .opt input[type=number]{width:84px}
+  .opt input:focus,.opt select:focus{border-color:var(--accent)}
+  .opt label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .hint{color:var(--dim);font-size:12.5px;margin-top:10px}
+  /* 按钮 */
+  .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  button{
+    font:14px/1 inherit;padding:10px 16px;border-radius:9px;border:1px solid var(--line);
+    background:#fff;color:var(--ink);cursor:pointer;transition:.15s
   }
-  .header h1 span { color: var(--accent); }
-  .header p { color: var(--text-dim); font-size: 15px; font-weight: 300; }
-
-  .card {
-    max-width: 900px;
-    width: 100%;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    backdrop-filter: blur(12px);
-    padding: 32px;
-    transition: border-color 0.3s;
-  }
-  .card.highlight { border-color: var(--accent); }
-
-  .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius-sm);
-    padding: 48px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.3s;
-    position: relative;
-  }
-  .upload-zone:hover, .upload-zone.dragover {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
-  .upload-zone .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.6; }
-  .upload-zone .label { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
-  .upload-zone .hint { font-size: 13px; color: var(--text-muted); }
-  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .upload-zone .file-name { display: none; margin-top: 16px; font-family: var(--font-mono); font-size: 13px; color: var(--accent); }
-  .upload-zone.has-file .file-name { display: block; }
-  .upload-zone.has-file .icon, .upload-zone.has-file .label, .upload-zone.has-file .hint { display: none; }
-
-  .loading { display: none; text-align: center; padding: 32px 0; }
-  .loading .spinner {
-    width: 36px; height: 36px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 16px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading p { color: var(--text-dim); font-size: 14px; }
-  .loading.active { display: block; }
-
-  .results { display: none; }
-  .results.active { display: block; }
-
-  .debug-banner {
-    background: var(--info-soft);
-    border: 1px solid rgba(91, 155, 213, 0.3);
-    border-radius: var(--radius-sm);
-    padding: 12px 16px;
-    margin-bottom: 20px;
-    font-size: 13px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    align-items: center;
-    display: none;
-  }
-  .debug-banner.active { display: flex; }
-  .debug-banner .db-item { font-family: var(--font-mono); font-size: 12px; color: var(--info); }
-  .debug-banner .db-label { color: var(--text-dim); font-size: 11px; margin-right: 4px; font-family: var(--font-sans); }
-
-  .summary {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-  }
-  .summary-item {
-    flex: 1;
-    min-width: 100px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 16px 20px;
-    text-align: center;
-  }
-  .summary-item .num { font-family: var(--font-mono); font-size: 28px; font-weight: 600; line-height: 1.2; }
-  .summary-item .num.affected { color: var(--accent); }
-  .summary-item .num.safe { color: var(--success); }
-  .summary-item .num.all { color: var(--text); }
-  .summary-item .lbl { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-
-  .file-table-wrap {
-    max-height: 360px;
-    overflow-y: auto;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    margin-bottom: 24px;
-  }
-  .file-table-wrap::-webkit-scrollbar { width: 6px; }
-  .file-table-wrap::-webkit-scrollbar-track { background: transparent; }
-  .file-table-wrap::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
-
-  table.file-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  table.file-table th {
-    position: sticky; top: 0;
-    background: rgba(11, 15, 26, 0.95);
-    backdrop-filter: blur(8px);
-    padding: 12px 16px;
-    text-align: left;
-    font-weight: 500;
-    color: var(--text-dim);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid var(--border);
-  }
-  table.file-table td {
-    padding: 10px 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    white-space: nowrap;
-  }
-  table.file-table tr:last-child td { border-bottom: none; }
-  table.file-table tr.row-affected { background: var(--danger-soft); }
-  table.file-table tr.row-affected td.date-new { color: var(--success); font-weight: 600; }
-  table.file-table tr.row-fixed { background: var(--success-soft); }
-  table.file-table .fname { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); font-family: var(--font-sans); font-size: 13px; }
-  table.file-table .date-cell { font-size: 12px; }
-  table.file-table .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; font-family: var(--font-sans); }
-  .badge.danger { background: var(--danger-soft); color: var(--danger); }
-  .badge.success { background: var(--success-soft); color: var(--success); }
-  .badge.warning { background: var(--accent-soft); color: var(--accent); }
-
-  .actions {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .btn {
-    padding: 14px 28px;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-family: var(--font-sans);
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.25s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .btn-primary {
-    background: var(--accent);
-    color: #0b0f1a;
-    box-shadow: 0 4px 20px var(--accent-glow);
-  }
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 28px var(--accent-glow);
-  }
-  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-  .btn-targz {
-    background: var(--info-soft);
-    color: var(--info);
-    border: 1px solid rgba(91, 155, 213, 0.3);
-  }
-  .btn-targz:hover {
-    background: rgba(91, 155, 213, 0.2);
-    border-color: var(--info);
-  }
-  .btn-targz:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-secondary {
-    background: var(--bg-card);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--text-muted); }
-
-  .error-state { display: none; text-align: center; padding: 40px 20px; color: var(--text-dim); }
-  .error-state.active { display: block; }
-  .error-state .icon { font-size: 36px; margin-bottom: 12px; }
-  .error-state p { color: var(--danger); font-size: 14px; }
-
-  .footer { margin-top: 32px; text-align: center; font-size: 12px; color: var(--text-muted); }
-  .footer a { color: var(--accent); text-decoration: none; }
-
-  .progress-bar { display: none; margin: 16px 0; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .progress-bar.active { display: block; }
-  .progress-bar .fill { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
-
-  .format-hint {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 14px 18px;
-    margin-bottom: 24px;
-    font-size: 13px;
-    color: var(--text-dim);
-    line-height: 1.7;
-    display: none;
-  }
-  .format-hint.active { display: block; }
-  .format-hint strong { color: var(--info); }
-  .format-hint .tag { color: var(--accent); }
-
-  @media (max-width: 640px) {
-    body { padding: 20px 16px 40px; }
-    .card { padding: 20px; }
-    .header h1 { font-size: 22px; }
-    .upload-zone { padding: 32px 16px; }
-    table.file-table td, table.file-table th { padding: 8px 10px; font-size: 11px; }
-    table.file-table .fname { max-width: 120px; }
-    .summary-item .num { font-size: 22px; }
-    .debug-banner { flex-direction: column; gap: 6px; }
-    .btn { padding: 12px 20px; font-size: 14px; }
-  }
+  button:hover{border-color:#b9c2cf}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary:hover{background:#1a60d0}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  /* 结果 */
+  #result{display:none}
+  .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;
+       padding:11px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:#fcfcfd}
+  .row .fname{font-weight:600;word-break:break-all}
+  .row .fmeta{color:var(--dim);font-size:12.5px;margin-top:2px;word-break:break-all}
+  .row .acts{display:flex;gap:8px;flex-shrink:0}
+  .row .acts button{padding:7px 12px;font-size:13px}
+  .tagi{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:20px;margin-left:6px;vertical-align:1px}
+  .tagi.a{background:#e7f2ff;color:#1259b3}
+  .tagi.b{background:#eaf6ec;color:var(--ok)}
+  .tagi.c{background:#fff4e0;color:var(--warn)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12.5px;background:#fafbfc}
+  td.nm{word-break:break-all}
+  td.tm{white-space:nowrap;font-variant-numeric:tabular-nums}
+  .arrow{color:var(--dim)}
+  .sum{font-size:13px;color:var(--dim);margin-top:10px;white-space:pre-wrap}
+  .logbox{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .muted{color:var(--dim)}
+  .okl{color:var(--ok)} .badl{color:var(--bad)} .warnl{color:var(--warn)}
+  footer{color:var(--dim);font-size:12.5px;margin-top:22px;line-height:1.8}
+  footer code{background:var(--code);padding:1px 5px;border-radius:4px}
+  .warnbar{background:#fff8e6;border:1px solid #f2e0a8;color:#6b5200;border-radius:10px;padding:11px 14px;font-size:13px;margin-bottom:16px}
 </style>
 </head>
 <body>
+<div class="wrap">
 
-<div class="header">
-  <div class="header-icon">🕐</div>
-  <h1>ZIP <span>时区修正</span></h1>
-  <p>上传 ZIP，自动修正 UTC+0 → Asia/Shanghai (UTC+8) 时区偏差。推荐使用 <strong>TAR.GZ</strong> 格式下载，时间戳更可靠。</p>
+  <h1>ZipTimeFix 网页版</h1>
+  <p class="sub">
+    谷歌云盘「多选下载」打包的 ZIP，因为打包服务器在美国太平洋时区，而 ZIP 的时间字段不带时区，
+    在北京打开会少 <b>15 小时</b>（美西夏令时）或 <b>16 小时</b>（美西冬令时）。本页在浏览器里
+    原地改写 ZIP 里的时间字节：<b>不重新压缩、不改文件长度、不上传任何数据</b>。
+    单文件网页，离线可用。
+  </p>
+
+  <div class="warnbar">
+    提示：如果你是在右侧的预览窗口里打开的，浏览器可能会拦截"下载文件"。请把本文件
+    <b>保存到电脑上再双击打开</b>（双击后用 Chrome / Edge 效果最好）。
+  </div>
+
+  <div class="card">
+    <h2><span class="n">1</span>把东西拖进来</h2>
+    <div id="dropzone">
+      <div class="big">拖入 ZIP 压缩包 或 已解压的文件夹</div>
+      <div class="small">也可以点这里选择；支持一次拖多个 ZIP</div>
+      <ul class="steps">
+        <li><b>拖 ZIP</b> → 直接得到时间正确的 <code>原名_fixed.zip</code>（原包不动）</li>
+        <li><b>拖文件夹</b> → 浏览器不允许改本地文件的"修改时间"，所以改为打包出一个
+            时间已正确的 ZIP，<b>解压出来时间就是对的</b></li>
+      </ul>
+    </div>
+
+    <div class="opts">
+      <div class="opt">
+        <span>目标时区</span>
+        <select id="optTarget">
+          <option value="8" selected>+8 北京</option>
+          <option value="9">+9 东京</option>
+          <option value="7">+7 曼谷</option>
+          <option value="0">0 UTC</option>
+          <option value="custom">自定义…</option>
+        </select>
+        <input type="number" id="optTargetCustom" step="0.25" value="8" style="display:none">
+      </div>
+      <div class="opt">
+        <span>包内时间属于</span>
+        <select id="optSource">
+          <option value="LA" selected>LA 太平洋（自动 15/16 小时）</option>
+          <option value="UTC">UTC</option>
+          <option value="fixed">固定偏移…</option>
+        </select>
+        <input type="number" id="optSourceFixed" step="0.5" value="-8" style="display:none">
+      </div>
+      <div class="opt">
+        <span>整体平移</span>
+        <input type="number" id="optShift" step="0.5" placeholder="小时（留空=按换算）">
+      </div>
+      <div class="opt">
+        <label><input type="checkbox" id="optForce"> 强制重算（忽略"已修过"标记）</label>
+      </div>
+      <div class="opt">
+        <label><input type="checkbox" id="optPreview"> 只预览不写入</label>
+      </div>
+    </div>
+
+    <div class="hint">
+      文件夹模式用"本机时区"把你现在看到的时间还原成真实时间；如果当初是在另一台时区的电脑上解压的，请改用"整体平移"。
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="btnPickZip">选择 ZIP 文件</button>
+      <button id="btnPickDir">选择文件夹</button>
+      <button id="btnClear">清空结果</button>
+    </div>
+  </div>
+
+  <div class="card" id="result">
+    <h2><span class="n">2</span>结果</h2>
+    <div id="files"></div>
+    <div id="tables"></div>
+    <div class="sum" id="sum"></div>
+  </div>
+
+  <footer>
+    原理与电脑版（ZipTimeFix32.exe / ZipTimeFix64.exe）完全一致：只改写中央目录里
+    <code>@+12</code> 与本地头里 <code>@+10</code> 各 2×2 字节的 DOS 时间字段；若有
+    <code>0x5455 UT</code> / <code>0x000A NTFS</code> 扩展字段则优先用其中的精确 UTC 瞬间重算，
+    扩展字段字节原样保留。修过的包会写入 ZIP 注释标记 <code>[ZipTimeFix LA-&gt;GMT+8]</code>，
+    再次拖进来会直接跳过（想重算就勾"强制重算"）。<br>
+    ZIP 的 DOS 时间字段只有 2 秒精度，出现偶数秒是格式本身的限制。
+  </footer>
+
 </div>
 
-<div class="card" id="appCard">
-  <div class="upload-zone" id="uploadZone">
-    <div class="icon">📦</div>
-    <div class="label">拖拽 ZIP 文件到此处，或点击选择</div>
-    <div class="hint">支持 .zip 格式</div>
-    <input type="file" id="fileInput" accept=".zip">
-    <div class="file-name" id="fileName"></div>
-  </div>
-
-  <div class="loading" id="loading">
-    <div class="spinner"></div>
-    <p>正在解析压缩包…</p>
-  </div>
-
-  <div class="error-state" id="errorState">
-    <div class="icon">⚠️</div>
-    <p id="errorMsg">无法读取该文件，请确认是有效的 ZIP 格式。</p>
-  </div>
-
-  <div class="results" id="results">
-    <div class="debug-banner" id="debugBanner">
-      <div class="db-item"><span class="db-label">浏览器时区</span><span id="dbTz"></span></div>
-      <div class="db-item"><span class="db-label">UTC 偏移</span><span id="dbOffset"></span></div>
-      <div class="db-item"><span class="db-label">读取策略</span><span id="dbMethod"></span></div>
-    </div>
-
-    <div class="summary" id="summary">
-      <div class="summary-item">
-        <div class="num all" id="totalFiles">0</div>
-        <div class="lbl">文件总数</div>
-      </div>
-      <div class="summary-item">
-        <div class="num affected" id="affectedFiles">0</div>
-        <div class="lbl">跨日风险<br>（日期需修正）</div>
-      </div>
-      <div class="summary-item">
-        <div class="num safe" id="safeFiles">0</div>
-        <div class="lbl">日期正确<br>（无需修正）</div>
-      </div>
-    </div>
-
-    <div class="file-table-wrap">
-      <table class="file-table">
-        <thead>
-          <tr>
-            <th>文件名</th>
-            <th>ZIP 原始时间 (UTC)</th>
-            <th>修正后上海时间</th>
-            <th>日期变化</th>
-          </tr>
-        </thead>
-        <tbody id="fileTableBody"></tbody>
-      </table>
-    </div>
-
-    <div class="format-hint" id="formatHint">
-      <strong>ZIP 格式限制</strong>：ZIP 的 MS-DOS 时间字段不含时区信息，JSZip 写入时使用 UTC 分量。若解压工具将 MS-DOS 时间解释为本地时间，可能仍有偏差。<br>
-      <strong class="tag">推荐使用 TAR.GZ</strong>：内部用 Unix 时间戳（绝对时间），解压后文件修改时间精确无误，不受时区影响。
-    </div>
-
-    <div class="progress-bar" id="progressBar">
-      <div class="fill" id="progressFill"></div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-primary" id="fixZipBtn">📦 下载修正 ZIP</button>
-      <button class="btn btn-targz" id="fixTarGzBtn">📁 下载 TAR.GZ（推荐）</button>
-      <button class="btn btn-secondary" id="resetBtn">重新选择</button>
-    </div>
-  </div>
-</div>
-
-<div class="footer">
-  纯前端处理 · 文件不上传服务器 · 基于 <a href="https://stuk.github.io/jszip/" target="_blank">JSZip</a> + <a href="https://github.com/nodeca/pako" target="_blank">pako</a>
-</div>
+<input type="file" id="zipInput" accept=".zip,application/zip,application/x-zip-compressed" multiple style="display:none">
+<input type="file" id="dirInput" webkitdirectory directory multiple style="display:none">
 
 <script>
-(function() {
-  const uploadZone = document.getElementById('uploadZone');
-  const fileInput = document.getElementById('fileInput');
-  const fileName = document.getElementById('fileName');
-  const loading = document.getElementById('loading');
-  const errorState = document.getElementById('errorState');
-  const errorMsg = document.getElementById('errorMsg');
-  const results = document.getElementById('results');
-  const debugBanner = document.getElementById('debugBanner');
-  const dbTz = document.getElementById('dbTz');
-  const dbOffset = document.getElementById('dbOffset');
-  const dbMethod = document.getElementById('dbMethod');
-  const formatHint = document.getElementById('formatHint');
-  const totalFiles = document.getElementById('totalFiles');
-  const affectedFiles = document.getElementById('affectedFiles');
-  const safeFiles = document.getElementById('safeFiles');
-  const fileTableBody = document.getElementById('fileTableBody');
-  const fixZipBtn = document.getElementById('fixZipBtn');
-  const fixTarGzBtn = document.getElementById('fixTarGzBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const progressBar = document.getElementById('progressBar');
-  const progressFill = document.getElementById('progressFill');
-  const card = document.getElementById('appCard');
+"use strict";
+/* ==========================================================================
+   ZipTimeFix 网页版 —— 与电脑版 ziptimefix.c 同一套算法
+   全部在本地内存里算，不发任何网络请求。
+   ========================================================================== */
+const ZTF = (function(){
 
-  let originalZipName = '';
-  let fileEntries = []; // { path, correctUtcDate, isCrossDay, data }
+  /* ---------------------------- 基础读写 ---------------------------- */
+  const rd16 = (b,o)=> b[o] | (b[o+1]<<8);
+  const rd32 = (b,o)=> (b[o] | (b[o+1]<<8) | (b[o+2]<<16) | (b[o+3]<<24)) >>> 0;
+  const rd64 = (b,o)=> rd32(b,o) + rd32(b,o+4)*4294967296;
+  const wr16 = (b,o,v)=>{ b[o]=v&255; b[o+1]=(v>>>8)&255; };
+  const wr32 = (b,o,v)=>{ b[o]=v&255; b[o+1]=(v>>>8)&255; b[o+2]=(v>>>16)&255; b[o+3]=(v>>>24)&255; };
+  const wr64 = (b,o,v)=>{ wr32(b,o,v>>>0); wr32(b,o+4,Math.floor(v/4294967296)); };
 
-  // ── Format helpers ──
-  function p(n) { return String(n).padStart(2, '0'); }
-  function fmtUtc(d) { return `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`; }
-  function fmtShanghai(d) {
-    const ms = d.getTime() + 8 * 3600000;
-    const sh = new Date(ms);
-    return `${sh.getUTCFullYear()}-${p(sh.getUTCMonth()+1)}-${p(sh.getUTCDate())} ${p(sh.getUTCHours())}:${p(sh.getUTCMinutes())}`;
+  /* --------------------- 日历（与 C 版逐位一致） --------------------- */
+  function daysFromCivil(y,m,d){
+    y -= (m<=2)?1:0;
+    const era = Math.floor(y/400);
+    const yoe = y - era*400;
+    const doy = Math.floor((153*(m + (m>2?-3:9)) + 2)/5 + d - 1);
+    const doe = yoe*365 + Math.floor(yoe/4) - Math.floor(yoe/100) + doy;
+    return era*146097 + doe - 719468;
+  }
+  function civilFromDays(z){
+    z += 719468;
+    const era = Math.floor(z/146097);
+    const doe = z - era*146097;
+    const yoe = Math.floor((doe - Math.floor(doe/1460) + Math.floor(doe/36524) - Math.floor(doe/146096))/365);
+    const y = yoe + era*400;
+    const doy = doe - (365*yoe + Math.floor(yoe/4) - Math.floor(yoe/100));
+    const mp = Math.floor((5*doy + 2)/153);
+    const d = doy - Math.floor((153*mp + 2)/5) + 1;
+    const m = mp + (mp<10?3:-9);
+    return { y: y + ((m<=2)?1:0), mo: m, d: d };
+  }
+  function civilToSerial(y,mo,d,h,mi,s){
+    return daysFromCivil(y,mo,d)*86400 + h*3600 + mi*60 + s;
+  }
+  function serialToCivil(t){
+    let days = Math.floor(t/86400), rem = t - days*86400;
+    const c = civilFromDays(days);
+    return { y:c.y, mo:c.mo, d:c.d, h:Math.floor(rem/3600), mi:Math.floor((rem%3600)/60), s:rem%60 };
+  }
+  const p2 = n => String(n).padStart(2,'0');
+  function fmt(t){ const c = serialToCivil(t); return `${c.y}-${p2(c.mo)}-${p2(c.d)} ${p2(c.h)}:${p2(c.mi)}`; }
+  function fmtFull(t){ const c = serialToCivil(t); return `${c.y}-${p2(c.mo)}-${p2(c.d)} ${p2(c.h)}:${p2(c.mi)}:${p2(c.s)}`; }
+
+  /* ---------------------- 美西夏令时（US 规则） ---------------------- */
+  function nthWeekday(y,m,weekday,n){
+    const first = daysFromCivil(y,m,1);
+    let wd0 = ((first + 4) % 7 + 7) % 7;
+    return 1 + ((weekday - wd0 + 7) % 7) + (n-1)*7;
+  }
+  function pacificIsDst(utc){
+    const c = serialToCivil(utc);
+    const start = civilToSerial(c.y, 3, nthWeekday(c.y,3,0,2), 2,0,0) + 8*3600;  /* 3月第2个周日 02:00 PST */
+    const end   = civilToSerial(c.y,11, nthWeekday(c.y,11,0,1), 2,0,0) + 7*3600; /* 11月第1个周日 02:00 PDT */
+    return utc >= start && utc < end;
+  }
+  function pacificWallToUtc(wall){
+    let utc = wall + 8*3600;
+    if (pacificIsDst(utc)) utc = wall + 7*3600;
+    return utc;
   }
 
-  // ── Read: extract local-time components from JSZip entry.date, reinterpret as UTC ──
-  // JSZip creates entry.date = new Date(y, m, d, h, min, s) using LOCAL time.
-  // The local-time components ARE the original MS-DOS values.
-  // Date.UTC() reinterprets them as pure UTC, eliminating browser TZ interference.
-  function getCorrectUtcDate(entry) {
-    const d = entry.date;
-    return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()));
+  /* --------------------------- DOS 时间字段 --------------------------- */
+  function dosEncode(wall){
+    const c = serialToCivil(wall);
+    let y=c.y, mo=c.mo, d=c.d, h=c.h, mi=c.mi, s=c.s;
+    if (y < 1980){ y=1980; mo=1; d=1; h=mi=s=0; }
+    if (y > 2107){ y=2107; mo=12; d=31; h=23; mi=59; s=58; }
+    return { t16: ((h<<11) | (mi<<5) | (s>>1)) & 0xffff,
+             d16: (((y-1980)<<9) | (mo<<5) | d) & 0xffff };
+  }
+  function dosDecode(t16,d16){
+    const y = ((d16>>9)&0x7f) + 1980, mo = (d16>>5)&0x0f, d = d16&0x1f;
+    const h = (t16>>11)&0x1f, mi = (t16>>5)&0x3f, s = (t16&0x1f)*2;
+    if (mo<1 || mo>12 || d<1 || d>31) return -1;
+    return civilToSerial(y,mo,d,h,mi,s);
   }
 
-  function isCrossDay(utcDate) {
-    const h = utcDate.getUTCHours();
-    return h >= 16 && h <= 23;
-  }
-
-  function showDebug(entry) {
-    const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const offsetMin = -entry.date.getTimezoneOffset();
-    dbTz.textContent = tzName || '(unknown)';
-    dbOffset.textContent = (offsetMin >= 0 ? '+' : '') + (offsetMin / 60).toFixed(1) + 'h';
-    dbMethod.textContent = 'Date.UTC(getLocalParts(entry.date)) → 消除浏览器 TZ 干扰';
-    debugBanner.classList.add('active');
-  }
-
-  function resetUI() {
-    loading.classList.remove('active');
-    errorState.classList.remove('active');
-    results.classList.remove('active');
-    debugBanner.classList.remove('active');
-    formatHint.classList.remove('active');
-    progressBar.classList.remove('active');
-    progressFill.style.width = '0%';
-    uploadZone.classList.remove('has-file');
-    fixZipBtn.disabled = false;
-    fixTarGzBtn.disabled = false;
-    fixZipBtn.textContent = '📦 下载修正 ZIP';
-    fixTarGzBtn.textContent = '📁 下载 TAR.GZ（推荐）';
-    fileEntries = [];
-    fileTableBody.innerHTML = '';
-  }
-
-  function showError(msg) {
-    loading.classList.remove('active');
-    results.classList.remove('active');
-    errorMsg.textContent = msg;
-    errorState.classList.add('active');
-  }
-
-  async function processZip(file) {
-    resetUI();
-    originalZipName = file.name;
-    fileName.textContent = '📦 ' + file.name;
-    uploadZone.classList.add('has-file');
-    loading.classList.add('active');
-
-    try {
-      const zip = await JSZip.loadAsync(await file.arrayBuffer());
-      const entries = [];
-      zip.forEach((rp, ze) => { if (!ze.dir) entries.push({ path: rp, entry: ze }); });
-      if (entries.length === 0) { showError('压缩包内没有找到文件。'); return; }
-
-      const parsed = [];
-      for (const e of entries) {
-        const correctUtc = getCorrectUtcDate(e.entry);
-        parsed.push({
-          path: e.path,
-          correctUtcDate: correctUtc,
-          isCrossDay: isCrossDay(correctUtc),
-          data: await e.entry.async('uint8array')
-        });
+  /* ------------------- 扩展字段里的精确 UTC 瞬间 ------------------- */
+  function extraFindUtc(b, off, len){
+    let i = 0;
+    while (i + 4 <= len){
+      const tag = rd16(b, off+i), sz = rd16(b, off+i+2);
+      const data = off + i + 4;
+      if (tag === 0x5455 && sz >= 5){                     /* UT */
+        if (b[data] & 1){
+          const v = rd32(b, data+1);
+          return v > 0x7fffffff ? v - 4294967296 : v;
+        }
+      } else if (tag === 0x000A){                         /* NTFS */
+        let o = 4;
+        while (o + 4 <= sz){
+          const at = rd16(b, data+o), asz = rd16(b, data+o+2);
+          if (at === 1 && asz >= 8){
+            const ft = rd64(b, data+o+4);
+            return Math.floor(ft/10000000) - 11644473600;
+          }
+          o += 4 + asz;
+        }
       }
-      fileEntries = parsed;
-      showDebug(entries[0].entry);
-      renderResults(parsed);
-      loading.classList.remove('active');
-      results.classList.add('active');
-      formatHint.classList.add('active');
-    } catch (err) {
-      console.error(err);
-      showError('无法解析该 ZIP 文件：' + (err.message || '格式错误'));
+      i += 4 + sz;
     }
+    return null;
   }
 
-  function renderResults(entries) {
-    const total = entries.length;
-    const affected = entries.filter(e => e.isCrossDay).length;
-    totalFiles.textContent = total;
-    affectedFiles.textContent = affected;
-    safeFiles.textContent = total - affected;
-
-    const sorted = [...entries].sort((a, b) => {
-      if (a.isCrossDay !== b.isCrossDay) return a.isCrossDay ? -1 : 1;
-      return a.path.localeCompare(b.path);
-    });
-
-    let html = '';
-    for (const e of sorted) {
-      const rowClass = e.isCrossDay ? 'row-affected' : 'row-fixed';
-      const utcDate = e.correctUtcDate;
-      const shDate = new Date(utcDate.getTime() + 8 * 3600000);
-      const utcDay = utcDate.getUTCDate();
-      const shDay = shDate.getUTCDate();
-      let dateChange = utcDay !== shDay
-        ? `<span class="badge danger">${p(utcDate.getUTCMonth()+1)}.${p(utcDay)} → ${p(shDate.getUTCMonth()+1)}.${p(shDay)}</span>`
-        : `<span class="badge success">不变</span>`;
-      html += `<tr class="${rowClass}">
-        <td class="fname" title="${e.path}">${e.path}</td>
-        <td class="date-cell">${fmtUtc(utcDate)}</td>
-        <td class="date-cell date-new">${fmtShanghai(utcDate)}</td>
-        <td>${dateChange}</td></tr>`;
+  /* ------------------- 从文件名解析日期（与 C 版一致） ------------------- */
+  function parseNameDate(name){
+    for (let i = 0; i + 4 <= name.length; i++){
+      const c0 = name[i];
+      if (!(c0 >= '1' && c0 <= '9')) continue;
+      if (!/^[0-9]{4}$/.test(name.substr(i,4))) continue;
+      const y = parseInt(name.substr(i,4),10);
+      let q = i + 4, mo = 0, d = 0, h = 0, mi = 0, got = false;
+      if (name[q] === '\u5e74'){                          /* 年 */
+        q++; while (name[q] === ' ') q++;
+        while (name[q] >= '0' && name[q] <= '9'){ mo = mo*10 + (+name[q]); q++; }
+        if (name[q] === '\u6708') q++;                    /* 月 */
+        while (name[q] === ' ') q++;
+        while (name[q] >= '0' && name[q] <= '9'){ d = d*10 + (+name[q]); q++; }
+        if (name[q] === '\u65e5') q++;                    /* 日 */
+        got = (mo>=1 && mo<=12 && d>=1 && d<=31);
+      } else if (name[q] === '-' || name[q] === '_' || name[q] === '.'){
+        const sep = name[q]; q++;
+        while (name[q] >= '0' && name[q] <= '9'){ mo = mo*10 + (+name[q]); q++; }
+        if (name[q] === sep) q++;
+        while (name[q] >= '0' && name[q] <= '9'){ d = d*10 + (+name[q]); q++; }
+        got = (mo>=1 && mo<=12 && d>=1 && d<=31);
+      }
+      if (!got) continue;
+      while (q < name.length && !(name[q] >= '0' && name[q] <= '9')) q++;
+      while (name[q] >= '0' && name[q] <= '9'){ h = h*10 + (+name[q]); q++; }
+      if (name[q] === '\u65f6'){                          /* 时 */
+        q++; while (name[q] === ' ') q++;
+        while (name[q] >= '0' && name[q] <= '9'){ mi = mi*10 + (+name[q]); q++; }
+      } else if (name[q] === ':'){
+        q++;
+        while (name[q] >= '0' && name[q] <= '9'){ mi = mi*10 + (+name[q]); q++; }
+      }
+      if (h > 23) h = 0;
+      if (mi > 59) mi = 0;
+      return civilToSerial(y,mo,d,h,mi,0);
     }
-    fileTableBody.innerHTML = html;
+    return null;
   }
 
-  // ── Write: construct a Date whose UTC components equal Shanghai time ──
-  // JSZip extracts getUTC*() from the Date and stores them in MS-DOS fields.
-  // So we use Date.UTC() to make the UTC components be the Shanghai time values.
-  function makeZipDate(utcDate) {
-    const shMs = utcDate.getTime() + 8 * 3600000;
-    const sh = new Date(shMs);
-    return new Date(Date.UTC(sh.getUTCFullYear(), sh.getUTCMonth(), sh.getUTCDate(), sh.getUTCHours(), sh.getUTCMinutes(), sh.getUTCSeconds()));
+  /* ------------------------------ 换算 ------------------------------ */
+  function makeOpts(o){
+    o = o || {};
+    const opt = {
+      targetMin: Math.trunc((o.targetHours != null ? o.targetHours : 8) * 60 + ((o.targetHours >= 0) ? 0.5 : -0.5)),
+      sourceUtc: o.source === 'UTC',
+      sourceFixedMin: (o.source === 'fixed') ? Math.trunc((o.sourceFixedHours != null ? o.sourceFixedHours : -8)*60 + (o.sourceFixedHours >= 0 ? 0.5 : -0.5)) : null,
+      shiftSet: (o.shiftHours != null && o.shiftHours !== '' && !isNaN(o.shiftHours)),
+      shiftHours: Number(o.shiftHours || 0),
+      force: !!o.force,
+      preview: !!o.preview
+    };
+    return opt;
   }
+  function convertWall(wall, usedUtc, opt){
+    if (opt.shiftSet) return wall + Math.round(opt.shiftHours*3600);
+    let utc;
+    if (usedUtc) utc = wall;
+    else if (opt.sourceUtc) utc = wall;
+    else if (opt.sourceFixedMin !== null) utc = wall - opt.sourceFixedMin*60;
+    else utc = pacificWallToUtc(wall);
+    return utc + opt.targetMin*60;
+  }
+  const tzLabel = opt => opt.shiftSet ? ('整体平移 ' + (opt.shiftHours>=0?'+':'') + opt.shiftHours + ' 小时')
+                    : (opt.sourceUtc ? '源 UTC' : (opt.sourceFixedMin !== null ? ('源 UTC' + fmtOff(opt.sourceFixedMin)) : '源 LA 太平洋（自动夏令时）'));
+  const fmtOff = m => { const s = m<0?'-':'+'; const a = Math.abs(m); return s + p2(Math.floor(a/60)) + ':' + p2(a%60); };
+  /* 与电脑版 C 代码逐字节相同的标记文本：
+     C 里写的是 " [ZipTimeFix LA->GMT%+d]"（小时数取整）与 " [ZipTimeFix shift=%+.2gh]"（两位有效数字） */
+  const g2 = v => { const n = Number(Number(v).toPrecision(2)); return (n >= 0 ? '+' : '') + String(n); };
+  const markerOf = opt => opt.shiftSet ? (' [ZipTimeFix shift=' + g2(opt.shiftHours) + 'h]')
+                                       : (' [ZipTimeFix LA->GMT' + (opt.targetMin >= 0 ? '+' : '-') + Math.abs(Math.trunc(opt.targetMin/60)) + ']');
 
-  async function doFixZip() {
-    if (fileEntries.length === 0) return;
-    fixZipBtn.disabled = true;
-    fixTarGzBtn.disabled = true;
-    fixZipBtn.textContent = '⏳ 正在生成 ZIP…';
-    progressBar.classList.add('active');
-    progressFill.style.width = '0%';
+  /* ============================ ZIP 修补 ============================ */
+  /* bytes: Uint8Array（会被复制后修改）；返回 {bytes, rows, stats, msg} */
+  function patchZip(bytes, options){
+    const opt = makeOpts(options);
+    const stats = { entries:0, patched:0, skipped:0, bad:0, fromExtra:0, fromPacific:0, delta:0 };
+    const rows = [];
+    const buf = bytes.slice();
+    const fsz = buf.length;
+    if (fsz < 22) return { error:'不是有效的 ZIP（文件太小）' };
 
-    try {
-      const newZip = new JSZip();
-      for (let i = 0; i < fileEntries.length; i++) {
-        const e = fileEntries[i];
-        newZip.file(e.path, e.data, { date: makeZipDate(e.correctUtcDate) });
-        progressFill.style.width = ((i + 1) / fileEntries.length * 100) + '%';
-        if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+    /* 找 EOCD：从末尾往前找 PK\5\6 */
+    const tailLen = Math.min(fsz, 66000), tailOff = fsz - tailLen;
+    let eocd = -1;
+    for (let i = tailLen - 22; i >= 0; i--){
+      if (buf[tailOff+i]===0x50 && buf[tailOff+i+1]===0x4b && buf[tailOff+i+2]===0x05 && buf[tailOff+i+3]===0x06){ eocd = tailOff+i; break; }
+    }
+    if (eocd < 0) return { error:'找不到 ZIP 尾部记录（可能不是 zip 文件）' };
+
+    let cdOff = rd32(buf, eocd+16), cdCnt = rd16(buf, eocd+10);
+    const cmtLen = rd16(buf, eocd+20);
+    const cmt = cmtLen ? new TextDecoder().decode(buf.subarray(eocd+22, eocd+22+cmtLen)) : '';
+
+    /* 已经修过？ */
+    const already = cmt.indexOf('ZipTimeFix') >= 0;
+    if (already && !opt.force && !opt.preview){
+      return { skippedFile:true, stats, rows, comment:cmt,
+               msg:'该包已用 ZipTimeFix 修过（标记：' + cmt.trim() + '），为避免重复换算已跳过。' };
+    }
+
+    /* ZIP64 */
+    if (cdOff === 0xffffffff || cdCnt === 0xffff){
+      for (let i = tailLen-22; i >= 0; i--){
+        if (tailOff+i+4 <= fsz && buf[tailOff+i]===0x50 && buf[tailOff+i+1]===0x4b &&
+            buf[tailOff+i+2]===0x06 && buf[tailOff+i+3]===0x07){
+          const z64 = rd64(buf, tailOff+i+8);
+          if (rd32(buf, z64) === 0x06064b50){ cdCnt = rd64(buf, z64+32); cdOff = rd64(buf, z64+48); }
+          break;
+        }
+      }
+    }
+
+    let off = cdOff;
+    for (let i = 0; i < cdCnt; i++){
+      if (off + 46 > fsz) break;
+      if (rd32(buf, off) !== 0x02014b50){ stats.bad++; break; }
+      const ctime16 = rd16(buf, off+12), cdate16 = rd16(buf, off+14);
+      const namelen = rd16(buf, off+28), extralen = rd16(buf, off+30), cmtlen = rd16(buf, off+32);
+      const lho = rd32(buf, off+42);
+      const nameBytes = buf.subarray(off+46, off+46+namelen);
+      const name = new TextDecoder('utf-8').decode(nameBytes);
+      const exOff = off + 46 + namelen;
+
+      let instant = extraFindUtc(buf, exOff, extralen);
+      let usedExtra = instant !== null;
+
+      /* 本地头（偏移可能藏在 ZIP64 的 0x0001 扩展字段里，须跳过两个大小占位字段） */
+      let lhoEff = lho;
+      if (lho === 0xffffffff){
+        let p = 0;
+        while (p + 4 <= extralen){
+          const tag = rd16(buf, exOff+p), sz = rd16(buf, exOff+p+2);
+          if (tag === 0x0001){
+            let q = p + 4;
+            if (rd32(buf, off+24) === 0xffffffff) q += 8;     /* 原始大小占位 */
+            if (rd32(buf, off+20) === 0xffffffff) q += 8;     /* 压缩后大小占位 */
+            if (q + 8 <= p + 4 + sz) lhoEff = rd64(buf, exOff+q);
+          }
+          p += 4 + sz;
+        }
+      }
+      let localInstant = null;
+      const localOk = (lhoEff !== 0xffffffff && lhoEff + 30 <= fsz && rd32(buf, lhoEff) === 0x04034b50);
+      if (localOk){
+        const lExtralen = rd16(buf, lhoEff+28), lNamelen = rd16(buf, lhoEff+26);
+        if (lExtralen && lhoEff+30+lNamelen+lExtralen <= fsz) localInstant = extraFindUtc(buf, lhoEff+30+lNamelen, lExtralen);
       }
 
-      const blob = await newZip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-      downloadBlob(blob, originalZipName.replace(/\.zip$/i, '') + '_fixed.zip');
-      fixZipBtn.textContent = '✅ 已下载';
-    } catch (err) {
-      console.error(err);
-      fixZipBtn.textContent = '❌ 失败，重试';
-    } finally {
-      fixZipBtn.disabled = false;
-      fixTarGzBtn.disabled = false;
-      progressBar.classList.remove('active');
-      progressFill.style.width = '0%';
+      const dosWall = dosDecode(ctime16, cdate16);
+      let srcVal;
+      if (instant !== null){ srcVal = instant; usedExtra = true; stats.fromExtra++; }
+      else if (localInstant !== null){ srcVal = localInstant; usedExtra = true; stats.fromExtra++; }
+      else {
+        if (dosWall < 0){ stats.bad++; off += 46 + namelen + extralen + cmtlen; continue; }
+        srcVal = dosWall; stats.fromPacific++;
+      }
+
+      /* 防重复：包内时间已经等于文件名里的日期 → 跳过 */
+      const base = name.includes('/') ? name.slice(name.lastIndexOf('/')+1) : name;
+      const want = parseNameDate(base);
+      if (!opt.force && dosWall >= 0 && want !== null && Math.floor(want/60) === Math.floor(dosWall/60)){
+        stats.skipped++; stats.entries++;
+        rows.push({ name, from:dosWall, to:dosWall, usedExtra:false, note:'已正确，跳过' });
+        off += 46 + namelen + extralen + cmtlen;
+        continue;
+      }
+
+      const newWall = convertWall(srcVal, usedExtra, opt);
+      const { t16, d16 } = dosEncode(newWall);
+
+      if (!opt.preview){
+        wr16(buf, off+12, t16); wr16(buf, off+14, d16);
+        if (localOk){ wr16(buf, lhoEff+10, t16); wr16(buf, lhoEff+12, d16); }
+        stats.patched++;
+        if (dosWall >= 0) stats.delta += (newWall - dosWall);
+      }
+      let note = '';
+      if (want !== null){
+        if (want === newWall) note = '与文件名一致';
+        else note = '文件名要求 ' + fmt(want) + '（该文件时间=打包时刻，属另一类）';
+      }
+      rows.push({ name, from: dosWall, to: newWall, usedExtra, note, verified: want !== null && want === newWall,
+                  mismatched: want !== null && want !== newWall });
+      stats.entries++;
+      off += 46 + namelen + extralen + cmtlen;
+    }
+
+    /* 写"已修过"标记（追加到 ZIP 注释，不影响任何偏移）
+       注意：注释写在文件末尾，追加会让文件变长几字节，所以要另分配缓冲区 */
+    let outBuf = buf, newComment = cmt;
+    if (!opt.preview && stats.patched > 0){
+      const mb = new TextEncoder().encode(markerOf(opt));
+      if (cmtLen + mb.length <= 65535){
+        const grown = new Uint8Array(buf.length + mb.length);
+        grown.set(buf, 0);
+        wr16(grown, eocd+20, cmtLen + mb.length);
+        grown.set(mb, eocd + 22 + cmtLen);
+        outBuf = grown;
+        newComment = cmt + markerOf(opt);
+      }
+    }
+    return { bytes: outBuf, stats, rows, comment: newComment, already, opt };
+  }
+
+  /* ========================= 文件夹 → 正确时间的 ZIP ========================= */
+  const CRC_TABLE = (()=>{ const t = new Uint32Array(256);
+    for (let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); t[n]=c>>>0; }
+    return t; })();
+  function crc32(u8){
+    let c = 0xffffffff;
+    for (let i=0;i<u8.length;i++) c = CRC_TABLE[(c ^ u8[i]) & 0xff] ^ (c>>>8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  /* 本机时区的"墙上时钟"（资源管理器里显示的那个时间） */
+  function localWall(ms){
+    const d = new Date(ms);
+    let s = civilToSerial(d.getFullYear(), d.getMonth()+1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
+    /* 2 秒精度对齐（与 DOS 字段一致） */
+    return s;
+  }
+  async function deflateRaw(u8){
+    if (typeof CompressionStream === 'undefined') return null;
+    try{
+      const cs = new CompressionStream('deflate-raw');
+      const w = cs.writable.getWriter(); w.write(u8); w.close();
+      const chunks = [], r = cs.readable.getReader();
+      for(;;){ const {done,value} = await r.read(); if (done) break; chunks.push(value); }
+      let n = 0; for (const c of chunks) n += c.length;
+      const out = new Uint8Array(n); let p = 0;
+      for (const c of chunks){ out.set(c,p); p += c.length; }
+      return out;
+    }catch(e){ return null; }
+  }
+  /* files: [{path, lastModified(ms), data(Uint8Array)}]，含目录项 path 以 / 结尾 */
+  async function buildFolderZip(files, options, onLine){
+    const opt = makeOpts(options);
+    const stats = { patches:[], skipped:[], dirs:0 };
+    const log = (s)=> onLine && onLine(s);
+
+    /* 读取文件夹里可能存在的 .ziptimefix.log（电脑版写的记录），用于幂等 */
+    const rec = new Map();
+    const logEntry = files.find(f => f.path === '.ziptimefix.log' || f.path.endsWith('/.ziptimefix.log'));
+    if (logEntry){
+      const txt = new TextDecoder('utf-8').decode(logEntry.data);
+      const lines = txt.split(/\r?\n/);
+      if (lines.length && lines[0].indexOf('ZipTimeFix') >= 0){
+        for (let i=1;i<lines.length;i++){
+          const t = lines[i].indexOf('\t'); if (t < 0) continue;
+          const m = lines[i].slice(t+1).match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+          if (m) rec.set(lines[i].slice(0,t), civilToSerial(+m[1],+m[2],+m[3],+m[4],+m[5],0));
+        }
+      }
+    }
+
+    const wanted = [], dirSet = new Set();
+    for (const f of files){
+      const isDir = f.path.endsWith('/');
+      if (isDir){ dirSet.add(f.path); continue; }
+      const base = f.path.split('/').pop();
+      if (base === '.ziptimefix.log') continue;              /* 不把记录文件再打包进去 */
+      const curWall = localWall(f.lastModified);
+      const want = parseNameDate(base);
+      const logged = rec.get(f.path);
+
+      if (!opt.force && logged !== undefined && Math.floor(logged/60) === Math.floor(curWall/60)){ stats.skipped.push({path:f.path, why:'上次已修过（记录一致）'}); continue; }
+      if (!opt.force && want !== null && Math.floor(want/60) === Math.floor(curWall/60)){ stats.skipped.push({path:f.path, why:'已与文件名一致'}); continue; }
+
+      const newWall = convertWall(curWall, false, opt);
+      let note = '';
+      if (want !== null) note = (want === newWall) ? '与文件名一致' : ('文件名要求 ' + fmt(want) + '（该文件时间=打包时刻，属另一类）');
+      stats.patches.push({ path:f.path, from:curWall, to:newWall, note,
+                           ok: want !== null && want === newWall, bad: want !== null && want !== newWall });
+      wanted.push({ path:f.path, data:f.data, wall:newWall,
+                    instant: opt.shiftSet ? null : (newWall - opt.targetMin*60) });
+    }
+    if (!stats.patches.length){
+      return { stats, bytes:null, msg:'没有需要处理的文件（全部已正确或已跳过）。' };
+    }
+
+    /* 组装 ZIP */
+    const te = new TextEncoder();
+    const parts = [];                      /* {u8} 顺序写入 */
+    const central = [];
+    let offset = 0;
+    const push = (u8)=>{ parts.push(u8); offset += u8.length; };
+    const nowWall = Math.max.apply(null, wanted.map(w=>w.wall));
+    const dt = dosEncode(nowWall);
+
+    const allDirs = new Set(dirSet);
+    for (const w of wanted){
+      const segs = w.path.split('/'); segs.pop();
+      let acc = '';
+      for (const s of segs){ acc += s + '/'; allDirs.add(acc); }
+    }
+    const dirList = Array.from(allDirs).sort();
+
+    const nfiles = wanted.length + dirList.length + 1;    /* +1 = 记录文件 */
+
+    /* 目录项 */
+    for (const d of dirList){
+      const nb = te.encode(d);
+      const lh = new Uint8Array(30 + nb.length);
+      wr32(lh,0,0x04034b50); wr16(lh,4,20); wr16(lh,6,0x0800); wr16(lh,8,0);
+      wr16(lh,10,dt.t16); wr16(lh,12,dt.d16); wr32(lh,14,0); wr32(lh,18,0); wr32(lh,22,0);
+      wr16(lh,26,nb.length); wr16(lh,28,0);
+      lh.set(nb, 30);
+      const lho = offset; push(lh);
+      central.push({ name:d, nb, lho, crc:0, csize:0, usize:0, t16:dt.t16, d16:dt.d16, attr:0x10, method:0 });
+      stats.dirs++;
+    }
+
+    /* 文件项 */
+    const zmethod = (typeof CompressionStream !== 'undefined') ? 'deflate' : 'store';
+    for (const w of wanted){
+      const nb = te.encode(w.path);
+      const crc = crc32(w.data);
+      let method = 0, body = w.data;
+      if (zmethod === 'deflate'){
+        const comp = await deflateRaw(w.data);
+        if (comp && comp.length < w.data.length){ method = 8; body = comp; }
+      }
+      /* UT 扩展字段（精确瞬间），保证 7-Zip 之类的工具也显示正确 */
+      let extra = new Uint8Array(0);
+      if (w.instant !== null){
+        extra = new Uint8Array(9);
+        wr16(extra,0,0x5455); wr16(extra,2,5); extra[4]=1; wr32(extra,5,w.instant>>>0);
+      }
+      const { t16, d16 } = dosEncode(w.wall);
+      const lh = new Uint8Array(30 + nb.length + extra.length);
+      wr32(lh,0,0x04034b50); wr16(lh,4,20); wr16(lh,6,0x0800); wr16(lh,8,method);
+      wr16(lh,10,t16); wr16(lh,12,d16); wr32(lh,14,crc); wr32(lh,18,body.length); wr32(lh,22,w.data.length);
+      wr16(lh,26,nb.length); wr16(lh,28,extra.length);
+      lh.set(nb,30); lh.set(extra,30+nb.length);
+      const lho = offset; push(lh); push(body);
+      central.push({ name:w.path, nb, lho, crc, csize:body.length, usize:w.data.length, t16, d16, attr:0x20, method, extra });
+    }
+
+    /* 记录文件 .ziptimefix.log（与电脑版格式一致，方便两个版本互相接力） */
+    {
+      let txt = 'ZipTimeFix applied: ' + tzLabel(opt) + ' -> GMT' + fmtOff(opt.targetMin) + ', folder mode (web)\n';
+      for (const p of stats.patches) txt += p.path + '\t' + fmt(p.to) + '\n';
+      for (const p of stats.skipped) txt += p.path + '\t' + fmt(localWall((files.find(f=>f.path===p.path)||{}).lastModified||0)) + '\n';
+      const data = te.encode(txt), nb = te.encode('.ziptimefix.log');
+      const crc = crc32(data);
+      const lh = new Uint8Array(30 + nb.length);
+      wr32(lh,0,0x04034b50); wr16(lh,4,20); wr16(lh,6,0x0800); wr16(lh,8,0);
+      wr16(lh,10,dt.t16); wr16(lh,12,dt.d16); wr32(lh,14,crc); wr32(lh,18,data.length); wr32(lh,22,data.length);
+      wr16(lh,26,nb.length); wr16(lh,28,0);
+      lh.set(nb,30);
+      const lho = offset; push(lh); push(data);
+      central.push({ name:'.ziptimefix.log', nb, lho, crc, csize:data.length, usize:data.length, t16:dt.t16, d16:dt.d16, attr:0x20, method:0 });
+    }
+
+    /* 中央目录 */
+    const cdStart = offset;
+    for (const c of central){
+      const ex = c.extra || new Uint8Array(0);
+      const ch = new Uint8Array(46 + c.nb.length + ex.length);
+      wr32(ch,0,0x02014b50); wr16(ch,4,20); wr16(ch,6,20); wr16(ch,8,0x0800); wr16(ch,10,c.method);
+      wr16(ch,12,c.t16); wr16(ch,14,c.d16); wr32(ch,16,c.crc);
+      wr32(ch,20,c.csize); wr32(ch,24,c.usize);
+      wr16(ch,28,c.nb.length); wr16(ch,30,ex.length); wr16(ch,32,0);
+      wr16(ch,34,0); wr16(ch,36,0); wr32(ch,38,c.attr); wr32(ch,42,c.lho);
+      ch.set(c.nb,46); ch.set(ex,46+c.nb.length);
+      push(ch);
+    }
+    const cdEnd = offset;
+
+    /* EOCD + 标记注释 */
+    const marker = te.encode(markerOf(opt));
+    const eo = new Uint8Array(22 + marker.length);
+    wr32(eo,0,0x06054b50); wr16(eo,4,0); wr16(eo,6,0);
+    wr16(eo,8,nfiles); wr16(eo,10,nfiles);
+    wr32(eo,12,cdEnd - cdStart); wr32(eo,16,cdStart); wr16(eo,20,marker.length);
+    eo.set(marker, 22);
+    push(eo);
+
+    let total = 0; for (const p of parts) total += p.length;
+    const out = new Uint8Array(total); let q = 0;
+    for (const p of parts){ out.set(p,q); q += p.length; }
+    return { bytes: out, stats, opt };
+  }
+
+  return { patchZip, buildFolderZip, parseNameDate, fmt, civilToSerial, localWall, markerOf, makeOpts,
+           pacificIsDst, convertWall, dosEncode, dosDecode };
+})();
+
+/* ==========================================================================
+   页面交互
+   ========================================================================== */
+(function(){
+  const $ = id => document.getElementById(id);
+  const dz = $('dropzone'), zipInput = $('zipInput'), dirInput = $('dirInput');
+  const filesBox = $('files'), tablesBox = $('tables'), sumBox = $('sum'), result = $('result');
+
+  /* 选项显示/隐藏 */
+  $('optTarget').addEventListener('change', e=>{
+    $('optTargetCustom').style.display = (e.target.value === 'custom') ? '' : 'none';
+  });
+  $('optSource').addEventListener('change', e=>{
+    $('optSourceFixed').style.display = (e.target.value === 'fixed') ? '' : 'none';
+  });
+  function readOptions(){
+    const tsel = $('optTarget').value;
+    const targetHours = (tsel === 'custom') ? Number($('optTargetCustom').value || 8) : Number(tsel);
+    const ssel = $('optSource').value;
+    const shiftRaw = $('optShift').value.trim();
+    return {
+      targetHours,
+      source: ssel,
+      sourceFixedHours: Number($('optSourceFixed').value || -8),
+      shiftHours: shiftRaw === '' ? null : Number(shiftRaw),
+      force: $('optForce').checked,
+      preview: $('optPreview').checked
+    };
+  }
+
+  /* 日志/结果渲染 */
+  let panelSeq = 0;
+  function newPanel(title, meta){
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.innerHTML = '<div><div class="fname"></div><div class="fmeta"></div></div><div class="acts"></div>';
+    r.querySelector('.fname').textContent = title;
+    r.querySelector('.fmeta').textContent = meta || '';
+    filesBox.appendChild(r);
+    const holder = document.createElement('div');
+    holder.id = 'panel' + (++panelSeq);
+    tablesBox.appendChild(holder);
+    result.style.display = '';
+    return { row:r, holder };
+  }
+  function note(txt, cls){
+    const d = document.createElement('span');
+    d.className = 'tagi ' + (cls || 'a'); d.textContent = txt;
+    return d;
+  }
+  function renderRows(holder, rows, opt){
+    holder.innerHTML = '';
+    const table = document.createElement('table');
+    table.innerHTML = '<thead><tr><th style="width:46%">包内 / 文件夹内路径</th><th style="width:34%">时间变化</th><th>说明</th></tr></thead>';
+    const tb = document.createElement('tbody');
+    for (const r of rows){
+      const tr = document.createElement('tr');
+      const td1 = document.createElement('td'); td1.className='nm'; td1.textContent = r.name;
+      const td2 = document.createElement('td'); td2.className='tm';
+      if (r.from >= 0){
+        td2.innerHTML = ZTF.fmt(r.from) + ' <span class="arrow">→</span> ' + ZTF.fmt(r.to);
+      } else {
+        td2.innerHTML = '<span class="muted">（无有效时间）</span> <span class="arrow">→</span> ' + ZTF.fmt(r.to);
+      }
+      const td3 = document.createElement('td');
+      if (r.usedExtra) td3.appendChild(note('有 UTC 字段', 'a'));
+      else td3.appendChild(note('太平洋换算', 'b'));
+      if (r.note){
+        const s = document.createElement('span');
+        s.style.marginLeft = '6px';
+        s.className = r.mismatched ? 'warnl' : (r.verified ? 'okl' : 'muted');
+        s.textContent = r.note;
+        td3.appendChild(s);
+      }
+      tr.append(td1, td2, td3);
+      tb.appendChild(tr);
+    }
+    table.appendChild(tb);
+    holder.appendChild(table);
+  }
+  function summary(holder, txt){
+    const p = document.createElement('div');
+    p.className = 'sum'; p.textContent = txt;
+    holder.appendChild(p);
+  }
+
+  /* 保存 */
+  function save(bytes, filename){
+    const blob = new Blob([bytes], { type:'application/zip' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+  }
+
+  /* ---------------- ZIP 模式 ---------------- */
+  async function handleZips(fileList){
+    const opt = readOptions();
+    for (const f of fileList){
+      const r = await f.arrayBuffer();
+      const bytes = new Uint8Array(r);
+      const out = ZTF.patchZip(bytes, opt);
+      const outName = f.name.replace(/\.[^.]+$/, '') + '_fixed.zip';
+      if (out.error){
+        const p = newPanel(f.name, '读取失败');
+        p.row.querySelector('.fmeta').className = 'fmeta badl';
+        p.row.querySelector('.fmeta').textContent = out.error;
+        continue;
+      }
+      const st = out.stats;
+      const meta = (f.size/1024/1024).toFixed(2) + ' MB　·　' + (opt.preview ? '只预览' : (out.skippedFile ? '已跳过' : ('输出 ' + outName)));
+      const p = newPanel(f.name, meta);
+      if (out.skippedFile){
+        p.row.querySelector('.fmeta').className = 'fmeta warnl';
+        p.row.querySelector('.fmeta').textContent = out.msg;
+        continue;
+      }
+      renderRows(p.holder, out.rows, opt);
+      let s = '条目 ' + st.entries + '，已改写 ' + st.patched +
+              '（其中用 UTC 字段 ' + st.fromExtra + '，按太平洋墙钟换算 ' + st.fromPacific + '）';
+      if (st.skipped) s += '\n已正确、自动跳过：' + st.skipped + ' 个';
+      if (st.bad) s += '\n有 ' + st.bad + ' 条无法处理（时间字段无效）';
+      if (st.patched) s += '\n平均平移 ' + (st.delta/st.patched/3600).toFixed(1) + ' 小时';
+      summary(p.holder, s);
+      if (opt.preview){
+        const btn = document.createElement('button');
+        btn.textContent = '仍然生成 ' + outName;
+        btn.onclick = ()=>{ const o2 = ZTF.patchZip(bytes, Object.assign({}, opt, {preview:false})); save(o2.bytes, outName); };
+        p.row.querySelector('.acts').appendChild(btn);
+      } else {
+        save(out.bytes, outName);
+        const t = note('已生成 ' + outName, 'b');
+        p.row.querySelector('.acts').appendChild(t);
+      }
     }
   }
 
-  // ── TAR format ──
-  // Each file: 512-byte header + data (padded to 512) + 2×512 zero blocks at end
-  // mtime: Unix timestamp in octal (11 digits + null)
-  // We store the Shanghai-adjusted Unix timestamp so the file date shows correctly.
-  function buildTar(entries) {
-    const encoder = new TextEncoder();
-    const blocks = [];
-
-    function pad512(data) {
-      const rem = data.length % 512;
-      if (rem === 0) return data;
-      const padded = new Uint8Array(data.length + 512 - rem);
-      padded.set(data);
-      return padded;
+  /* ---------------- 文件夹模式 ---------------- */
+  async function readEntry(entry, prefix, acc){
+    if (entry.isFile){
+      const file = await new Promise((res, rej)=> entry.file(res, rej));
+      const data = new Uint8Array(await file.arrayBuffer());
+      acc.push({ path: prefix + entry.name, lastModified: file.lastModified, data });
+    } else if (entry.isDirectory){
+      acc.push({ path: prefix + entry.name + '/', lastModified: Date.now(), data: new Uint8Array(0), isDir:true });
+      const reader = entry.createReader();
+      for(;;){
+        const batch = await new Promise((res, rej)=> reader.readEntries(res, rej));
+        if (!batch.length) break;
+        for (const e of batch) await readEntry(e, prefix + entry.name + '/', acc);
+      }
     }
-
-    function octal(n, len) {
-      let s = n.toString(8);
-      while (s.length < len - 1) s = '0' + s;
-      return s + '\0';
+  }
+  async function readDirEntry(entry){
+    const acc = [];
+    await readEntry(entry, '', acc);
+    return acc;
+  }
+  async function handleFolder(items){
+    /* items: [{path, lastModified, data}] */
+    const opt = readOptions();
+    const rootName = (items && items.rootName) ? items.rootName : '文件夹';
+    const p = newPanel(rootName, items.filter(i=>!i.isDir).length + ' 个文件　·　' + (opt.preview ? '只预览' : '正在打包…'));
+    const lines = [];
+    let res;
+    try{ res = await ZTF.buildFolderZip(items, opt, l => lines.push(l)); }
+    catch(err){ console.error(err); p.row.querySelector('.fmeta').textContent = '处理失败：' + err.message; return; }
+    if (!res.bytes){
+      p.row.querySelector('.fmeta').textContent = res.msg;
+      const rows = res.stats.patches.concat(res.stats.skipped.map(s=>({ name:s.path, from:-1, to:-1, note:s.why })));
+      if (rows.length) renderRows(p.holder, rows, opt);
+      return;
     }
+    if (opt.preview){
+      p.row.querySelector('.fmeta').textContent = '只预览：未生成文件';
+      renderRows(p.holder, res.stats.patches, opt);
+      summary(p.holder, '将要修正 ' + res.stats.patches.length + ' 个文件，跳过 ' + res.stats.skipped.length + ' 个。');
+      return;
+    }
+    const outName = rootName.replace(/\.[^.]+$/,'') + '_时间已修正.zip';
+    save(res.bytes, outName);
+    p.row.querySelector('.fmeta').textContent =
+      res.stats.patches.length + ' 个文件已修正　·　' + (res.bytes.length/1024/1024).toFixed(2) + ' MB　·　' + outName;
+    const t = note('已生成 ' + outName, 'b');
+    p.row.querySelector('.acts').appendChild(t);
+    renderRows(p.holder, res.stats.patches.concat(res.stats.skipped.map(s=>({name:s.path, from:-1, to:-1, note:s.why}))), opt);
+    let s = '修正 ' + res.stats.patches.length + ' 个文件，跳过 ' + res.stats.skipped.length + ' 个。\n' +
+            '把上面这个 ZIP 解压出来，文件的"修改时间"就是正确的了。\n' +
+            '（浏览器不允许直接改本地文件的修改时间，所以文件夹模式用"打包成正确时间的 ZIP"来实现。）';
+    summary(p.holder, s);
+  }
 
-    for (const e of entries) {
-      const header = new Uint8Array(512);
-      header.fill(0);
-
-      // Handle paths > 100 chars: split into prefix + name (ustar)
-      let name = e.path;
-      let prefix = '';
-      if (name.length > 100) {
-        const parts = name.split('/');
-        // Try to find a split point
-        let namePart = '';
-        let prefixPart = '';
-        for (let i = parts.length - 1; i >= 0; i--) {
-          const candidate = parts.slice(i).join('/');
-          if (candidate.length <= 100) {
-            namePart = candidate;
-            prefixPart = parts.slice(0, i).join('/');
-            if (prefixPart.length <= 155) { name = namePart; prefix = prefixPart; break; }
+  /* ---------------- 输入入口 ---------------- */
+  dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave', ()=> dz.classList.remove('over'));
+  dz.addEventListener('drop', async e=>{
+    e.preventDefault(); dz.classList.remove('over');
+    const dt = e.dataTransfer;
+    const entries = [];
+    if (dt.items && dt.items.length && dt.items[0].webkitGetAsEntry){
+      for (const it of dt.items){
+        if (it.kind !== 'file') continue;
+        const en = it.webkitGetAsEntry();
+        if (en) entries.push(en);
+      }
+    }
+    if (entries.length){
+      const zips = entries.filter(en => en.isFile && /\.zip$/i.test(en.name));
+      const others = entries.filter(en => en !== null && !zips.includes(en));
+      if (zips.length){
+        const fl = [];
+        for (const en of zips) fl.push(await new Promise((res,rej)=> en.file(res,rej)));
+        await guard(handleZips)(fl);
+      }
+      if (others.length){
+        const acc = [];
+        for (const en of others){
+          if (en.isDirectory){ const sub = await readDirEntry(en); sub.forEach(s=>acc.push(s)); }
+          else {
+            const f = await new Promise((res,rej)=> en.file(res,rej));
+            acc.push({ path: f.name, lastModified: f.lastModified, data: new Uint8Array(await f.arrayBuffer()) });
           }
         }
-        // If still too long, truncate
-        if (name.length > 100) name = name.slice(0, 100);
-        if (prefix.length > 155) prefix = prefix.slice(0, 155);
+        if (acc.length){ acc.rootName = (others[0].isDirectory ? others[0].name : '拖入的文件'); await guard(handleFolder)(acc); }
       }
-
-      header.set(encoder.encode(name).slice(0, 100), 0);
-      header.set(encoder.encode('0000644\0'), 100);
-      header.set(encoder.encode('0000000\0'), 108);
-      header.set(encoder.encode('0000000\0'), 116);
-      header.set(encoder.encode(octal(e.data.length, 12)), 124);
-
-      // Shanghai time as Unix timestamp
-      const shMtime = Math.floor(e.correctUtcDate.getTime() / 1000) + 8 * 3600;
-      header.set(encoder.encode(octal(shMtime, 12)), 136);
-
-      header[156] = 0x30; // typeflag '0' = regular file
-      if (prefix) {
-        header[156] = 0x35; // typeflag '5' = directory (not used for files)
-        // Actually for ustar long paths, we use '0' for regular file with prefix
-        header[156] = 0x30;
-      }
-      header.set(encoder.encode('ustar\0'), 257);
-      header[263] = 0x30; header[264] = 0x30; // version "00"
-      header.set(encoder.encode('root\0'), 265);
-      header.set(encoder.encode('root\0'), 297);
-      if (prefix) header.set(encoder.encode(prefix).slice(0, 155), 345);
-
-      // Checksum: set field to spaces, sum all bytes, write octal
-      for (let i = 148; i < 156; i++) header[i] = 0x20;
-      let sum = 0;
-      for (let i = 0; i < 512; i++) sum += header[i];
-      const chk = octal(sum, 7).slice(0, 6) + '\0 ';
-      header.set(encoder.encode(chk), 148);
-
-      blocks.push(header);
-      blocks.push(pad512(e.data));
+      return;
     }
-
-    // Two zero blocks to mark end of archive
-    const zero = new Uint8Array(512);
-    blocks.push(zero);
-    blocks.push(zero);
-
-    const total = blocks.reduce((s, b) => s + b.length, 0);
-    const result = new Uint8Array(total);
-    let off = 0;
-    for (const b of blocks) { result.set(b, off); off += b.length; }
-    return result;
-  }
-
-  async function doFixTarGz() {
-    if (fileEntries.length === 0) return;
-    fixZipBtn.disabled = true;
-    fixTarGzBtn.disabled = true;
-    fixTarGzBtn.textContent = '⏳ 正在生成 TAR.GZ…';
-    progressBar.classList.add('active');
-    progressFill.style.width = '30%';
-
-    try {
-      // Build tar in chunks to keep UI responsive
-      const tarData = buildTar(fileEntries);
-      progressFill.style.width = '60%';
-      await new Promise(r => setTimeout(r, 0));
-
-      // Gzip compress
-      const gzData = pako.gzip(tarData, { level: 6 });
-      progressFill.style.width = '100%';
-
-      const blob = new Blob([gzData], { type: 'application/gzip' });
-      downloadBlob(blob, originalZipName.replace(/\.zip$/i, '') + '_fixed.tar.gz');
-      fixTarGzBtn.textContent = '✅ 已下载';
-    } catch (err) {
-      console.error(err);
-      fixTarGzBtn.textContent = '❌ 失败，重试';
-    } finally {
-      fixZipBtn.disabled = false;
-      fixTarGzBtn.disabled = false;
-      progressBar.classList.remove('active');
-      progressFill.style.width = '0%';
-    }
-  }
-
-  function downloadBlob(blob, name) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }
-
-  // ── Events ──
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files && fileInput.files[0]) processZip(fileInput.files[0]);
-  });
-  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); card.classList.add('highlight'); });
-  uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('dragover'); card.classList.remove('highlight'); });
-  uploadZone.addEventListener('drop', e => {
-    e.preventDefault();
-    uploadZone.classList.remove('dragover');
-    card.classList.remove('highlight');
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const f = e.dataTransfer.files[0];
-      if (!f.name.toLowerCase().endsWith('.zip')) { showError('请上传 .zip 格式的文件。'); return; }
-      const dt = new DataTransfer(); dt.items.add(f); fileInput.files = dt.files;
-      processZip(f);
+    if (dt.files && dt.files.length){
+      const zips = Array.from(dt.files).filter(f => /\.zip$/i.test(f.name));
+      if (zips.length) return guard(handleZips)(zips);
+      const acc = [];
+      for (const f of dt.files) acc.push({ path:f.name, lastModified:f.lastModified, data:new Uint8Array(await f.arrayBuffer()) });
+      if (acc.length){ acc.rootName = '拖入的文件'; await guard(handleFolder)(acc); }
     }
   });
-  fixZipBtn.addEventListener('click', doFixZip);
-  fixTarGzBtn.addEventListener('click', doFixTarGz);
-  resetBtn.addEventListener('click', () => { resetUI(); fileInput.value = ''; uploadZone.classList.remove('has-file'); card.classList.remove('highlight'); });
-  uploadZone.addEventListener('click', () => { if (!loading.classList.contains('active')) fileInput.click(); });
-  document.addEventListener('dragover', e => e.preventDefault());
-  document.addEventListener('drop', e => e.preventDefault());
+  dz.addEventListener('click', ()=> zipInput.click());
+
+  $('btnPickZip').addEventListener('click', ()=> zipInput.click());
+  $('btnPickDir').addEventListener('click', ()=> dirInput.click());
+  $('btnClear').addEventListener('click', ()=>{ filesBox.innerHTML = ''; tablesBox.innerHTML = ''; result.style.display = 'none'; });
+  zipInput.addEventListener('change', async ()=>{ const fl = Array.from(zipInput.files); zipInput.value=''; if (fl.length) await guard(handleZips)(fl); });
+  dirInput.addEventListener('change', async ()=>{
+    const fl = Array.from(dirInput.files); dirInput.value = '';
+    if (!fl.length) return;
+    const first = fl[0].webkitRelativePath || fl[0].name;
+    const rootName = first.indexOf('/') >= 0 ? first.split('/')[0] : '文件夹';
+    const acc = [];
+    for (const f of fl){
+      const raw = f.webkitRelativePath || f.name;
+      /* 去掉最外层文件夹名，做成 ZIP 内的相对路径 */
+      const rel = (raw.indexOf('/') >= 0) ? raw.split('/').slice(1).join('/') : raw;
+      if (!rel) continue;
+      acc.push({ path: rel, lastModified: f.lastModified, data: new Uint8Array(await f.arrayBuffer()) });
+    }
+    acc.rootName = rootName;
+    await guard(handleFolder)(acc);
+  });
+
+  /* 兜底：万一出未预料的错误，也让它显示出来，不静默失败 */
+  function fail(msg){
+    const p = newPanel('出错了', '');
+    p.row.querySelector('.fmeta').className = 'fmeta badl';
+    p.row.querySelector('.fmeta').textContent = msg;
+  }
+  window.addEventListener('unhandledrejection', e => {
+    const r = e.reason;
+    fail(String((r && (r.stack || r.message)) || r));
+  });
+  const guard = fn => (...a) => { try { const v = fn(...a); if (v && v.catch) v.catch(err => fail(String(err && (err.message || err)))); return v; } catch(err){ fail(String(err && (err.message || err))); } };
+
+  /* 供测试/自动化调用 */
+  window.ZTFPage = { handleZips: guard(handleZips), handleFolder: guard(handleFolder), readOptions, save };
 })();
 </script>
 </body>
