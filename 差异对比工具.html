@@ -1,2101 +1,1605 @@
 <!-- JISHENG-OS-APP: {"name":"差异对比","width":1100,"height":700,"icon":"<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 3v18M3 12h18M8 8l-5 4 5 4M16 8l5 4-5 4\"/></svg>"} -->
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="auto">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML 文件差异对比工具</title>
-<style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :root {
-    --bg-primary: #1e1e2e;
-    --bg-secondary: #181825;
-    --bg-surface: #313244;
-    --bg-hover: #45475a;
-    --text-primary: #cdd6f4;
-    --text-secondary: #a6adc8;
-    --text-muted: #6c7086;
-    --accent: #89b4fa;
-    --accent-hover: #74c7ec;
-    --green: #a6e3a1;
-    --green-bg: rgba(166, 227, 161, 0.12);
-    --green-bg-strong: rgba(166, 227, 161, 0.25);
-    --red: #f38ba8;
-    --red-bg: rgba(243, 139, 168, 0.12);
-    --red-bg-strong: rgba(243, 139, 168, 0.25);
-    --yellow: #f9e2af;
-    --yellow-bg: rgba(249, 226, 175, 0.12);
-    --border: #45475a;
-    --scrollbar-bg: #313244;
-    --scrollbar-thumb: #585b70;
-    --mauve: #cba6f7;
-    --peach: #fab387;
-  }
-
-  body {
-    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: var(--scrollbar-bg); }
-  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-
-  /* Header */
-  .header {
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    padding: 10px 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-shrink: 0;
-  }
-
-  .header h1 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--accent);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    white-space: nowrap;
-  }
-
-  .header h1 svg {
-    width: 24px;
-    height: 24px;
-  }
-
-  /* Toolbar */
-  .toolbar {
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    padding: 8px 16px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-
-  .toolbar-group {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .toolbar-divider {
-    width: 1px;
-    height: 28px;
-    background: var(--border);
-    margin: 0 8px;
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-    font-family: inherit;
-  }
-
-  .btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--text-muted);
-  }
-
-  .btn:active {
-    transform: scale(0.97);
-  }
-
-  .btn.active {
-    background: var(--accent);
-    color: var(--bg-primary);
-    border-color: var(--accent);
-  }
-
-  .btn.primary {
-    background: var(--accent);
-    color: var(--bg-primary);
-    border-color: var(--accent);
-    font-weight: 600;
-  }
-
-  .btn.primary:hover {
-    background: var(--accent-hover);
-  }
-
-  .btn.danger {
-    border-color: var(--red);
-    color: var(--red);
-  }
-
-  .btn.danger:hover {
-    background: var(--red-bg);
-  }
-
-  .btn.success {
-    border-color: var(--green);
-    color: var(--green);
-  }
-
-  .btn.success:hover {
-    background: var(--green-bg);
-  }
-
-  .btn svg {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
-
-  .btn-icon {
-    padding: 6px 8px;
-  }
-
-  /* Main Content */
-  .main-content {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  /* Sidebar */
-  .sidebar {
-    width: 260px;
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    transition: width 0.3s;
-  }
-
-  .sidebar.collapsed {
-    width: 0;
-    overflow: hidden;
-    border-right: none;
-  }
-
-  .sidebar-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    font-weight: 600;
-    font-size: 13px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .sidebar-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  }
-
-  .diff-nav-item {
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: background 0.15s;
-    margin-bottom: 2px;
-  }
-
-  .diff-nav-item:hover {
-    background: var(--bg-surface);
-  }
-
-  .diff-nav-item.active {
-    background: var(--bg-surface);
-    border-left: 3px solid var(--accent);
-  }
-
-  .diff-nav-item .badge {
-    font-size: 11px;
-    padding: 1px 8px;
-    border-radius: 10px;
-    font-weight: 600;
-  }
-
-  .badge-add {
-    background: var(--green-bg-strong);
-    color: var(--green);
-  }
-
-  .badge-del {
-    background: var(--red-bg-strong);
-    color: var(--red);
-  }
-
-  .badge-mod {
-    background: var(--yellow-bg);
-    color: var(--yellow);
-  }
-
-  /* Stats Bar */
-  .stats-bar {
-    padding: 12px 16px;
-    border-top: 1px solid var(--border);
-    font-size: 12px;
-    color: var(--text-muted);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .stats-row {
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .stat-num {
-    font-weight: 700;
-    font-size: 14px;
-  }
-
-  .stat-green { color: var(--green); }
-  .stat-red { color: var(--red); }
-  .stat-yellow { color: var(--yellow); }
-
-  /* Editor Area */
-  .editor-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* Input Mode */
-  .input-area {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-  }
-
-  .input-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .input-panel + .input-panel {
-    border-left: 1px solid var(--border);
-  }
-
-  .panel-header {
-    padding: 8px 16px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .panel-header .file-name {
-    color: var(--accent);
-    font-weight: 400;
-    font-size: 12px;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .input-panel textarea {
-    flex: 1;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border: none;
-    padding: 16px;
-    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    resize: none;
-    outline: none;
-    tab-size: 2;
-  }
-
-  .input-panel textarea::placeholder {
-    color: var(--text-muted);
-  }
-
-  /* Diff Display */
-  .diff-container {
-    flex: 1;
-    display: none;
-    overflow: hidden;
-  }
-
-  .diff-container.active {
-    display: flex;
-  }
-
-  /* Side by side */
-  .diff-side-by-side {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-  }
-
-  .diff-pane {
-    flex: 1;
-    overflow: auto;
-    position: relative;
-  }
-
-  .diff-pane + .diff-pane {
-    border-left: 2px solid var(--border);
-  }
-
-  .diff-pane-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: var(--bg-secondary);
-    padding: 6px 16px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .diff-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
-    font-size: 13px;
-    line-height: 1.6;
-  }
-
-  .diff-table td {
-    padding: 0 12px;
-    white-space: pre;
-    vertical-align: top;
-  }
-
-  .diff-table .line-num {
-    width: 60px;
-    min-width: 60px;
-    text-align: right;
-    color: var(--text-muted);
-    user-select: none;
-    padding-right: 16px;
-    border-right: 1px solid var(--border);
-    font-size: 12px;
-  }
-
-  .diff-table .line-content {
-    padding-left: 12px;
-    width: 100%;
-  }
-
-  .diff-line-add {
-    background: var(--green-bg);
-  }
-
-  .diff-line-add .line-num {
-    background: var(--green-bg-strong);
-    color: var(--green);
-  }
-
-  .diff-line-del {
-    background: var(--red-bg);
-  }
-
-  .diff-line-del .line-num {
-    background: var(--red-bg-strong);
-    color: var(--red);
-  }
-
-  .diff-line-mod {
-    background: var(--yellow-bg);
-  }
-
-  .diff-line-empty {
-    background: var(--bg-surface);
-  }
-
-  .diff-line-empty .line-content {
-    opacity: 0.3;
-  }
-
-  .char-add {
-    background: var(--green-bg-strong);
-    color: var(--green);
-    border-radius: 2px;
-    padding: 0 1px;
-  }
-
-  .char-del {
-    background: var(--red-bg-strong);
-    color: var(--red);
-    border-radius: 2px;
-    padding: 0 1px;
-  }
-
-  /* Unified diff */
-  .diff-unified {
-    flex: 1;
-    overflow: auto;
-  }
-
-  .diff-unified .diff-table .line-num-col {
-    width: 50px;
-  }
-
-  .unified-prefix {
-    width: 20px;
-    text-align: center;
-    font-weight: 700;
-    user-select: none;
-  }
-
-  .prefix-add { color: var(--green); }
-  .prefix-del { color: var(--red); }
-
-  /* Inline diff */
-  .diff-inline {
-    flex: 1;
-    overflow: auto;
-    padding: 16px;
-  }
-
-  .inline-block {
-    margin-bottom: 16px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
-  .inline-block-header {
-    background: var(--bg-surface);
-    padding: 6px 12px;
-    font-size: 12px;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
-  }
-
-  /* Search */
-  .search-bar {
-    display: none;
-    padding: 8px 16px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    align-items: center;
-    gap: 8px;
-  }
-
-  .search-bar.active {
-    display: flex;
-  }
-
-  .search-input {
-    flex: 1;
-    max-width: 300px;
-    padding: 6px 12px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-primary);
-    font-size: 13px;
-    outline: none;
-    font-family: inherit;
-  }
-
-  .search-input:focus {
-    border-color: var(--accent);
-  }
-
-  .search-info {
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-
-  /* Modal / Dialog */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .modal-overlay.active {
-    display: flex;
-  }
-
-  .modal {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    width: 90%;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow: auto;
-    padding: 24px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  }
-
-  .modal h2 {
-    margin-bottom: 16px;
-    font-size: 18px;
-    color: var(--accent);
-  }
-
-  .modal-body {
-    font-size: 14px;
-    line-height: 1.8;
-    color: var(--text-secondary);
-  }
-
-  .modal-body kbd {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 12px;
-    font-family: inherit;
-    color: var(--mauve);
-  }
-
-  .modal-footer {
-    margin-top: 20px;
-    text-align: right;
-  }
-
-  /* Toast */
-  .toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 2000;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .toast {
-    padding: 10px 20px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 13px;
-    color: var(--text-primary);
-    animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  }
-
-  .toast.success { border-left: 3px solid var(--green); }
-  .toast.error { border-left: 3px solid var(--red); }
-  .toast.info { border-left: 3px solid var(--accent); }
-
-  @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-
-  @keyframes fadeOut {
-    to { opacity: 0; transform: translateX(50%); }
-  }
-
-  /* Progress bar */
-  .similarity-bar {
-    width: 100%;
-    height: 6px;
-    background: var(--bg-surface);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 4px;
-  }
-
-  .similarity-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--red), var(--yellow), var(--green));
-    border-radius: 3px;
-    transition: width 0.5s ease;
-  }
-
-  /* Input mode indicator */
-  .input-mode-active .diff-container { display: none; }
-  .diff-mode-active .input-area { display: none; }
-  .diff-mode-active .diff-container.active { display: flex; }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .sidebar { width: 200px; }
-    .toolbar { gap: 4px; }
-    .btn { padding: 5px 10px; font-size: 12px; }
-    .header h1 { font-size: 15px; }
-  }
-
-  /* Fold button */
-  .fold-marker {
-    cursor: pointer;
-    color: var(--text-muted);
-    user-select: none;
-  }
-
-  .fold-marker:hover {
-    color: var(--accent);
-  }
-
-  /* Context lines toggle */
-  .context-control {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-
-  .context-control input {
-    width: 50px;
-    padding: 3px 6px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-size: 12px;
-    text-align: center;
-  }
-
-  /* Highlight match */
-  .search-highlight {
-    background: rgba(249, 226, 175, 0.4);
-    border-radius: 2px;
-  }
-
-  .search-highlight-current {
-    background: rgba(249, 226, 175, 0.7);
-    outline: 1px solid var(--yellow);
-  }
-
-  /* Merge panel */
-  .merge-panel {
-    display: none;
-    flex: 1;
-    overflow: auto;
-  }
-
-  .merge-panel.active {
-    display: block;
-  }
-
-  .merge-panel textarea {
-    width: 100%;
-    height: 100%;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border: none;
-    padding: 16px;
-    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    resize: none;
-    outline: none;
-  }
-
-  /* Drop zone */
-  .drop-zone {
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    padding: 40px;
-    text-align: center;
-    margin: 16px;
-    transition: all 0.3s;
-    cursor: pointer;
-  }
-
-  .drop-zone:hover, .drop-zone.drag-over {
-    border-color: var(--accent);
-    background: rgba(137, 180, 250, 0.05);
-  }
-
-  .drop-zone svg {
-    width: 48px;
-    height: 48px;
-    color: var(--text-muted);
-    margin-bottom: 12px;
-  }
-
-  .drop-zone p {
-    color: var(--text-muted);
-    font-size: 14px;
-  }
-
-  .drop-zone .drop-hint {
-    color: var(--accent);
-    font-size: 13px;
-    margin-top: 8px;
-  }
-
-  /* Navigation arrows */
-  .nav-arrows {
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    z-index: 100;
-  }
-
-  .nav-arrows .btn {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    padding: 0;
-  }
-
-  .diff-mode-active .nav-arrows { display: flex; }
-  .input-mode-active .nav-arrows { display: none; }
-
-  /* Word wrap toggle */
-  .word-wrap .diff-table td.line-content {
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  .word-wrap textarea {
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  /* Theme light */
-  body.light-theme {
-    --bg-primary: #eff1f5;
-    --bg-secondary: #e6e9ef;
-    --bg-surface: #ccd0da;
-    --bg-hover: #bcc0cc;
-    --text-primary: #4c4f69;
-    --text-secondary: #5c5f77;
-    --text-muted: #8c8fa1;
-    --accent: #1e66f5;
-    --accent-hover: #2a6ef5;
-    --green: #40a02b;
-    --green-bg: rgba(64, 160, 43, 0.12);
-    --green-bg-strong: rgba(64, 160, 43, 0.25);
-    --red: #d20f39;
-    --red-bg: rgba(210, 15, 57, 0.10);
-    --red-bg-strong: rgba(210, 15, 57, 0.22);
-    --yellow: #df8e1d;
-    --yellow-bg: rgba(223, 142, 29, 0.12);
-    --border: #bcc0cc;
-    --scrollbar-bg: #ccd0da;
-    --scrollbar-thumb: #9ca0b0;
-    --mauve: #8839ef;
-    --peach: #fe640b;
-  }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#4f46e5">
+<title>Diffly · 文本 / 文件差异对比工具</title>
+<style id="css">
+:root{
+  --bg:#f3f4f7;--surface:#fff;--surface2:#f3f5f8;--bd:#e1e5ea;--tx:#1b2330;--tx2:#566174;--tx3:#8893a3;
+  --ac:#4f46e5;--ac2:#eceeff;--ln:#98a2b1;--gut:#f8f9fb;
+  --del-bg:#ffecec;--del-gut:#ffd8d8;--del-w:#ffb4b4;--del-fg:#b42318;
+  --ins-bg:#e7f8ed;--ins-gut:#c9efd6;--ins-w:#98e2b2;--ins-fg:#157f3c;
+  --mod-bg:#fff5d9;--mod-fg:#9a6700;--fold-bg:#eaf0fb;--empty:#eef0f3;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono","Noto Sans Mono CJK SC","Microsoft YaHei UI",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --fs:13px;--lh:20px;--tab:4;--lnw:3;--hh:30px;--fh:26px;--cw:100%;
+}
+[data-dark]{
+  --bg:#0f131a;--surface:#161b24;--surface2:#1d2330;--bd:#2a3242;--tx:#e6eaf2;--tx2:#a2adc0;--tx3:#6f7b8f;
+  --ac:#8b84ff;--ac2:#262a4d;--ln:#677387;--gut:#131820;
+  --del-bg:#3a1c22;--del-gut:#4d2229;--del-w:#7a2d37;--del-fg:#ff8a93;
+  --ins-bg:#16301f;--ins-gut:#1c4128;--ins-w:#26683a;--ins-fg:#6fdc92;
+  --mod-bg:#3a3014;--mod-fg:#f0c14b;--fold-bg:#1c2538;--empty:#1a202b;
+}
+[data-cb]{--del-bg:#fff0de;--del-gut:#ffe0bd;--del-w:#ffc78a;--del-fg:#b45309;--ins-bg:#e4efff;--ins-gut:#c9dcfb;--ins-w:#9cc3fb;--ins-fg:#1d4ed8}
+[data-dark][data-cb]{--del-bg:#3b2a14;--del-gut:#4d3517;--del-w:#7d531c;--del-fg:#ffb35c;--ins-bg:#14293f;--ins-gut:#173654;--ins-w:#1f5a93;--ins-fg:#74b3ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{font:14px/1.45 var(--sans);background:var(--bg);color:var(--tx);overflow:hidden;-webkit-text-size-adjust:100%}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.noscroll{scrollbar-width:none}.noscroll::-webkit-scrollbar{display:none}
+.i{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;pointer-events:none}
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+/* header */
+#top{flex:none;display:flex;align-items:center;gap:8px;height:44px;padding:0 8px 0 12px;background:var(--surface);border-bottom:1px solid var(--bd)}
+.brand{display:flex;align-items:center;gap:7px;font-weight:800;letter-spacing:.2px;white-space:nowrap}
+.brand .i{width:22px;height:22px;color:var(--ac);stroke-width:2.2}
+.brand small{font-weight:500;color:var(--tx3);font-size:12px}
+#top{position:relative}
+.tabs{display:flex;gap:2px;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--surface2);padding:3px;border-radius:10px}
+.ck{display:flow-root}
+#vb.cards{padding-bottom:10px}
+.tb{border:0;background:none;padding:4px 14px;border-radius:8px;color:var(--tx2);font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tb.on{background:var(--surface);color:var(--ac);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.bdg{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--ac);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
+.bdg:empty{display:none}.bdg.ok{background:#30a46c}
+.tools{display:flex;gap:2px;margin-left:auto}
+
+/* buttons */
+.ib{flex:none;display:inline-grid;place-items:center;width:32px;height:30px;border:0;background:none;border-radius:8px;color:var(--tx2)}
+.ib:hover{background:var(--bd);color:var(--tx)}.ib:active{transform:scale(.94)}
+.ib.on{background:var(--ac2);color:var(--ac)}
+.btn{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 11px;border:1px solid var(--bd);background:var(--surface);border-radius:8px;font-weight:600;font-size:13px;white-space:nowrap;flex:none}
+.btn:hover{border-color:var(--ac);color:var(--ac)}.btn:active{transform:scale(.97)}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:#fff}.btn.pri:hover{filter:brightness(1.1);color:#fff}
+.btn.sm{height:27px;padding:0 9px;font-size:12.5px}
+.tg{flex:none;height:27px;padding:0 9px;border:1px solid var(--bd);background:var(--surface);border-radius:7px;font-size:12.5px;font-weight:600;color:var(--tx2);white-space:nowrap}
+.tg.on{background:var(--ac2);border-color:var(--ac);color:var(--ac)}
+.sel{flex:none;height:27px;border:1px solid var(--bd);background:var(--surface);border-radius:7px;padding:0 4px;font-size:12.5px;font-weight:600;color:var(--tx2);max-width:150px}
+.seg{display:inline-flex;background:var(--bd);padding:2px;border-radius:8px;flex:none}
+.seg button{border:0;background:none;padding:2px 11px;height:25px;border-radius:6px;font-weight:600;font-size:13px;color:var(--tx2);white-space:nowrap}
+.seg button.on{background:var(--surface);color:var(--ac);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:0 8px;height:22px;border-radius:99px;font-size:12px;font-weight:700;background:var(--surface2);color:var(--tx2);white-space:nowrap;flex:none}
+.chip.add{color:var(--ins-fg);background:var(--ins-bg)}.chip.del{color:var(--del-fg);background:var(--del-bg)}.chip.mod{color:var(--mod-fg);background:var(--mod-bg)}.chip.ok{color:#157f3c;background:var(--ins-bg)}.chip.warn{color:var(--mod-fg);background:var(--mod-bg)}
+.spacer{flex:1;min-width:0}
+/* main + panels */
+#main{flex:1;min-height:0;display:flex;position:relative}
+.panel{display:none;flex:1;min-width:0;min-height:0;flex-direction:column;background:var(--surface)}
+body[data-tab=in] #p-in,body[data-tab=diff] #p-diff,body[data-tab=res] #p-res{display:flex}
+.dbar{flex:none;display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--bd);background:var(--surface2);overflow-x:auto}
+.nav{display:flex;align-items:center;flex:none}
+.cl{min-width:42px;text-align:center;font-size:12.5px;font-weight:700;color:var(--tx2);font-variant-numeric:tabular-nums}
+/* input panes */
+.panes{flex:1;min-height:0;display:flex}
+.pane{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;position:relative}
+.pane+.pane{border-left:1px solid var(--bd)}
+.pane.drag::after{content:"松开以载入文件";position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--ac) 14%,transparent);border:2px dashed var(--ac);color:var(--ac);font-weight:700;font-size:16px;z-index:5;pointer-events:none}
+.ph{flex:none;display:flex;align-items:center;gap:3px;height:38px;padding:0 6px 0 8px;background:var(--surface2);border-bottom:1px solid var(--bd);overflow-x:auto}
+.tag{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:6px;font-size:12px;font-weight:800;color:#fff;flex:none}
+.tag.a{background:#e5484d}.tag.b{background:#30a46c}.tag.r{background:var(--ac);padding:0 7px}
+.fname{border:0;background:transparent;min-width:0;width:112px;font-weight:600;padding:3px 5px;border-radius:6px;flex:0 1 auto;text-overflow:ellipsis}
+.fname:focus{background:var(--surface);outline:1px solid var(--ac)}
+.meta{font-size:12px;color:var(--tx3);white-space:nowrap;margin-left:4px;font-variant-numeric:tabular-nums}
+.ed{flex:1;min-height:0;display:flex;position:relative;background:var(--surface)}
+.gut{flex:none;overflow:hidden;white-space:pre;text-align:right;padding:8px 6px 44px 8px;color:var(--ln);background:var(--gut);font:var(--fs)/var(--lh) var(--mono);user-select:none;min-width:34px;border-right:1px solid var(--bd)}
+.ed textarea{flex:1;min-width:0;border:0;outline:0;resize:none;background:transparent;padding:8px;font:var(--fs)/var(--lh) var(--mono);tab-size:var(--tab);-moz-tab-size:var(--tab);white-space:pre;overflow:auto;color:var(--tx)}
+.ed textarea::placeholder{color:var(--tx3);font-family:var(--sans)}
+body.wrap .ed textarea{white-space:pre-wrap;overflow-wrap:anywhere}
+body.wrap .gut{display:none}
+.sum{flex:none;display:flex;align-items:center;gap:8px;height:38px;padding:0 8px;border-top:1px solid var(--bd);background:var(--surface2);font-size:12.5px;color:var(--tx2);overflow-x:auto;white-space:nowrap}
+/* diff area */
+#dw{flex:1;min-height:0;display:flex;position:relative}
+#sc{flex:1;min-width:0;overflow:auto;position:relative;background:var(--surface);overscroll-behavior:contain}
+#vb{position:relative;min-width:var(--minw,100%)}
+#rl{width:12px;flex:none;position:relative;background:var(--surface2);border-left:1px solid var(--bd);cursor:pointer;touch-action:none}
+#rl canvas{position:absolute;inset:0;width:100%;height:100%}
+#rlt{position:absolute;left:0;right:0;background:var(--ac);opacity:.18;border-radius:2px;pointer-events:none;min-height:6px}
+#emsg{position:sticky;left:0;width:var(--cw);padding:26px 16px;text-align:center;color:var(--tx2);font-size:14px}
+#emsg b{display:block;font-size:18px;color:var(--tx);margin-bottom:4px}
+#rb{flex:none;height:92px;border-bottom:1px solid var(--bd);background:var(--surface2);position:relative}
+#rb canvas{width:100%;height:100%;display:block;cursor:pointer}
+.row{display:grid;grid-template-columns:1fr 1fr;font:var(--fs)/var(--lh) var(--mono);min-height:var(--lh)}
+.cell{display:flex;min-width:0;overflow:hidden}
+.cell+.cell{border-left:1px solid var(--bd)}
+.ln{flex:none;box-sizing:content-box;width:calc(var(--lnw) * 1ch);padding:0 6px;text-align:right;color:var(--ln);background:var(--gut);user-select:none;font-size:.92em}
+.tx{flex:1;min-width:0;padding:0 8px;white-space:pre;tab-size:var(--tab);-moz-tab-size:var(--tab);overflow:hidden}
+body.wrap .tx{white-space:pre-wrap;overflow-wrap:anywhere}
+.sg{flex:none;width:1.6ch;text-align:center;user-select:none;color:var(--tx3)}
+.t1>.cell:first-child,.t3>.cell:first-child{background:var(--del-bg)}
+.t1>.cell:first-child .ln,.t3>.cell:first-child .ln{background:var(--del-gut);color:var(--del-fg)}
+.t2>.cell:last-child,.t3>.cell:last-child{background:var(--ins-bg)}
+.t2>.cell:last-child .ln,.t3>.cell:last-child .ln{background:var(--ins-gut);color:var(--ins-fg)}
+.cell.e{background:repeating-linear-gradient(135deg,var(--empty) 0 5px,transparent 5px 10px)!important}
+.cell.e .ln{background:transparent!important}
+.row>.cell:first-child mark{background:var(--del-w)}
+.row>.cell:last-child mark{background:var(--ins-w)}
+mark{color:inherit;border-radius:2px;padding:0}
+.row.dl>.cell:first-child .tx,.row.dr>.cell:last-child .tx{opacity:.38;text-decoration:line-through;text-decoration-color:var(--tx3)}
+.row.u{display:flex}
+.row.u.t1{background:var(--del-bg)}.row.u.t2{background:var(--ins-bg)}.row.u.t3{background:var(--mod-bg)}
+.row.u.t1 .ln{background:var(--del-gut);color:var(--del-fg)}.row.u.t2 .ln{background:var(--ins-gut);color:var(--ins-fg)}.row.u.t3 .ln{background:var(--mod-bg);filter:brightness(.96)}
+.row.u.t1 mark{background:var(--del-w)}.row.u.t2 mark{background:var(--ins-w)}
+.row.u.t1.rej .tx,.row.u.t2.rej .tx{opacity:.38;text-decoration:line-through;text-decoration-color:var(--tx3)}
+del.iw{background:var(--del-w);text-decoration:line-through;text-decoration-thickness:1px;border-radius:2px}
+ins.iw{background:var(--ins-w);text-decoration:none;border-radius:2px}
+.row.ctx{opacity:.75}
+.sp{color:var(--tx3);opacity:.7}
+.hh{position:sticky;left:0;width:var(--cw);display:flex;align-items:center;gap:8px;height:var(--hh);padding:0 8px;background:var(--surface2);border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);font:12px var(--sans);color:var(--tx2);overflow:hidden;white-space:nowrap}
+.hh .hn{font-weight:800;color:var(--tx)}
+.ty{padding:0 7px;border-radius:99px;font-weight:700;font-size:11px;line-height:18px}
+.ty.add{color:var(--ins-fg);background:var(--ins-bg)}.ty.del{color:var(--del-fg);background:var(--del-bg)}.ty.mod{color:var(--mod-fg);background:var(--mod-bg)}
+.hh .gr{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pks{display:inline-flex;gap:3px;flex:none}
+.pk{border:1px solid var(--bd);background:var(--surface);border-radius:6px;padding:0 8px;height:22px;font-weight:700;font-size:12px;color:var(--tx2)}
+.pk:hover{border-color:var(--ac);color:var(--ac)}
+.pk.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.hh.cur{background:var(--ac2);box-shadow:inset 3px 0 var(--ac)}
+.fold{position:sticky;left:0;width:var(--cw);height:var(--fh);display:flex;align-items:center;justify-content:center;gap:6px;background:var(--fold-bg);color:var(--ac);font:600 12px var(--sans);cursor:pointer;user-select:none}
+.fold:hover{filter:brightness(.96)}
+.cards{padding-bottom:8px}
+.card{margin:8px 8px 0;border:1px solid var(--bd);border-radius:10px;overflow:hidden;background:var(--surface)}
+.card.cur{border-color:var(--ac);box-shadow:0 0 0 2px var(--ac2)}
+.card .hh{position:static;width:auto;height:auto;min-height:34px;padding:4px 10px;flex-wrap:wrap;border-top:0}
+.card .tx{white-space:pre-wrap;overflow-wrap:anywhere}
+.card .more{display:flex;align-items:center;justify-content:center;height:var(--fh);background:var(--fold-bg);color:var(--ac);font:600 12px var(--sans);cursor:pointer}
+.card .hh .gr{white-space:normal}
+/* result footer + find */
+.rfoot{flex:none;display:flex;align-items:center;gap:10px;height:32px;padding:0 8px;border-top:1px solid var(--bd);background:var(--surface2);font-size:12px;color:var(--tx3);overflow-x:auto;white-space:nowrap}
+.fbar{flex:none;display:flex;align-items:center;gap:5px;padding:5px 8px;border-bottom:1px solid var(--bd);background:var(--surface);overflow-x:auto}
+.fbar input[type=text]{height:27px;width:150px;flex:0 1 150px;min-width:80px;border:1px solid var(--bd);border-radius:7px;padding:0 8px;background:var(--surface2)}
+.fbar input:focus{outline:1px solid var(--ac)}
+/* overlay stuff */
+#menu{position:fixed;z-index:60;min-width:190px;max-width:calc(100vw - 16px);background:var(--surface);border:1px solid var(--bd);border-radius:11px;box-shadow:0 10px 32px rgba(0,0,0,.22);padding:4px;max-height:70vh;overflow:auto}
+.mi{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:7px;font-size:13.5px;white-space:nowrap}
+.mi:hover{background:var(--surface2)}.mi small{margin-left:auto;color:var(--tx3);padding-left:14px}
+.msep{height:1px;background:var(--bd);margin:4px 2px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translate(-50%,12px);z-index:80;background:#1d2330;color:#fff;border-radius:10px;padding:8px 14px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:.2s;display:flex;gap:12px;align-items:center;max-width:calc(100vw - 20px)}
+#toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#toast button{border:0;background:none;color:#a5b4fc;font-weight:700;padding:0}
+#busy{position:absolute;left:0;top:0;height:2px;width:0;background:var(--ac);z-index:70;transition:width .3s}
+dialog{border:0;border-radius:14px;padding:0;background:var(--surface);color:var(--tx);width:min(520px,calc(100vw - 16px));max-height:calc(100dvh - 24px);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog[open]{display:flex;flex-direction:column}
+dialog::backdrop{background:rgba(8,12,22,.5)}
+.dh{display:flex;align-items:center;padding:10px 8px 10px 16px;font-weight:800;font-size:15px;border-bottom:1px solid var(--bd);flex:none}
+.dh .ib{margin-left:auto}
+.db{overflow:auto;flex:1;min-height:0}
+.sr{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 16px;border-bottom:1px solid var(--bd);font-size:14px}
+.sr small{display:block;color:var(--tx3);font-size:12px}
+.sr select,.sr input[type=number]{height:30px;border:1px solid var(--bd);border-radius:7px;background:var(--surface2);padding:0 6px}
+.sr input[type=number]{width:64px}
+input.sw{appearance:none;-webkit-appearance:none;flex:none;width:40px;height:23px;border-radius:12px;background:var(--bd);position:relative;cursor:pointer;transition:.15s;margin:0}
+input.sw::after{content:"";position:absolute;left:2px;top:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+input.sw:checked{background:var(--ac)}input.sw:checked::after{left:19px}
+.help{padding:10px 16px 14px;font-size:13.5px}
+.help h4{margin:12px 0 6px;font-size:13px;color:var(--tx3);letter-spacing:.5px}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--bd)}
+kbd{font:600 11.5px var(--mono);background:var(--surface2);border:1px solid var(--bd);border-bottom-width:2px;border-radius:5px;padding:0 6px;margin-left:3px}
+.help p{margin:4px 0;color:var(--tx2)}
+#btabs{display:none;flex:none;height:calc(54px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--surface);border-top:1px solid var(--bd)}
+#btabs .tb{flex:1;flex-direction:column;justify-content:center;gap:2px;border-radius:0;font-size:11px;position:relative;background:none!important;box-shadow:none!important;color:var(--tx3)}
+#btabs .tb.on{color:var(--ac)}
+#btabs .tb .i{width:21px;height:21px}
+#btabs .bdg{position:absolute;top:5px;left:calc(50% + 6px)}
+@media (pointer:coarse){.ib{width:38px;height:36px}.ph{height:42px}.pk{height:26px}.tg,.sel,.btn.sm{height:31px}.seg button{height:29px}.mi{padding:11px 12px}}
+@media (max-width:719px){
+  .tabs,.hide-m,.brand small{display:none}
+  #btabs{display:flex}
+  .panes{flex-direction:column}
+  .pane+.pane{border-left:0;border-top:1px solid var(--bd)}
+  #toast{bottom:calc(66px + env(safe-area-inset-bottom))}
+  .fname{width:84px}
+  dialog{margin:auto 0 0;width:100%;max-height:88dvh;border-radius:16px 16px 0 0}
+  #rb{height:76px}
+}
+@media (max-width:420px){.gut{min-width:28px;padding-left:4px;padding-right:4px}.ed textarea{padding:8px 6px}}
+@media (min-width:1000px){
+  body.dual[data-tab=diff] #p-res,body.dual[data-tab=res] #p-diff{display:flex}
+  body.dual #p-res{flex:0 0 38%;border-left:1px solid var(--bd)}
+}
+@media (max-width:999px){#q-dual{display:none}}
 </style>
 </head>
-<body class="input-mode-active">
+<body data-tab="in">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="16" rx="2"/><path d="M6 9h2M6 13h2M16 11h2M16 15h2"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
+<symbol id="i-diff" viewBox="0 0 24 24"><path d="M8 4v16M16 4v16M3 9h10M11 15h10"/></symbol>
+<symbol id="i-res" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></symbol>
+<symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4"/></symbol>
+<symbol id="i-set" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+<symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></symbol>
+<symbol id="i-open" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-paste" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+<symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></symbol>
+<symbol id="i-json" viewBox="0 0 24 24"><path d="M8 4C6 4 6 6 6 8s0 4-2 4c2 0 2 2 2 4s0 4 2 4M16 4c2 0 2 2 2 4s0 4 2 4c-2 0-2 2-2 4s0 4-2 4"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+<symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"/></symbol>
+<symbol id="i-dual" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M13 4v16"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01"/></symbol>
+</svg>
 
-<!-- Toast Container -->
-<div class="toast-container" id="toastContainer"></div>
-
-<!-- Header -->
-<div class="header">
-  <h1>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M12 3v18M3 12h18M8 8l-5 4 5 4M16 8l5 4-5 4"/>
-    </svg>
-    文件差异对比工具
-  </h1>
-</div>
-
-<!-- Toolbar -->
-<div class="toolbar">
-  <div class="toolbar-group">
-    <button class="btn primary" onclick="compareDiff()" title="开始对比 (Ctrl+Enter)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
-      对比
-    </button>
-    <button class="btn" onclick="swapTexts()" title="交换左右内容">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
-      交换
-    </button>
-    <button class="btn danger" onclick="clearAll()" title="清空所有内容">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M5 6v14a2 2 0 002 2h10a2 2 0 002-2V6M10 11v6M14 11v6"/></svg>
-      清空
-    </button>
-  </div>
-
-  <div class="toolbar-divider"></div>
-
-  <div class="toolbar-group">
-    <button class="btn active" id="btnSideBySide" onclick="setViewMode('sideBySide')" title="并排视图">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
-      并排
-    </button>
-    <button class="btn" id="btnUnified" onclick="setViewMode('unified')" title="统一视图">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18"/></svg>
-      统一
-    </button>
-    <button class="btn" id="btnInline" onclick="setViewMode('inline')" title="内联视图">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-      内联
-    </button>
-  </div>
-
-  <div class="toolbar-divider"></div>
-
-  <div class="toolbar-group">
-    <button class="btn" id="btnCharDiff" onclick="toggleCharDiff()" title="字符级差异高亮">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 014 4v1H8V6a4 4 0 014-4zM5 8h14l-1.5 13H6.5L5 8z"/></svg>
-      字符级
-    </button>
-    <button class="btn" id="btnIgnoreWhitespace" onclick="toggleIgnoreWhitespace()" title="忽略空白字符差异">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 9l6 6M15 9l-6 6"/><circle cx="12" cy="12" r="10"/></svg>
-      忽略空白
-    </button>
-    <button class="btn" id="btnIgnoreCase" onclick="toggleIgnoreCase()" title="忽略大小写差异">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5h6l4 14M7 12h4M15 5h5l-2.5 7M15 19l2.5-7L20 19"/></svg>
-      忽略大小写
-    </button>
-    <button class="btn" id="btnWordWrap" onclick="toggleWordWrap()" title="自动换行">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h15a3 3 0 010 6h-4M14 15l-3 3 3 3"/></svg>
-      换行
-    </button>
-  </div>
-
-  <div class="toolbar-divider"></div>
-
-  <div class="toolbar-group">
-    <button class="btn" onclick="toggleSearch()" title="搜索 (Ctrl+F)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      搜索
-    </button>
-    <button class="btn" onclick="toggleSidebar()" title="切换侧边栏">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
-      侧栏
-    </button>
-    <button class="btn" onclick="exportDiff()" title="导出差异报告">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V7l-5-4z"/><path d="M12 11v6M9 14l3 3 3-3"/></svg>
-      导出
-    </button>
-    <button class="btn" onclick="copyDiff()" title="复制差异结果">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-      复制
-    </button>
-  </div>
-
-  <div class="toolbar-divider"></div>
-
-  <div class="toolbar-group">
-    <button class="btn" onclick="loadSample()" title="加载示例数据">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6M12 18v4M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M2 12h6M18 12h4M4.93 19.07l4.24-4.24M14.83 9.17l4.24-4.24"/></svg>
-      示例
-    </button>
-    <button class="btn" onclick="toggleTheme()" title="切换主题">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-      主题
-    </button>
-    <button class="btn" onclick="showHelp()" title="帮助">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
-      帮助
-    </button>
-  </div>
-
-  <div class="toolbar-divider"></div>
-
-  <div class="context-control" title="上下文行数">
-    <span>上下文:</span>
-    <input type="number" id="contextLines" value="3" min="0" max="50" onchange="reRenderDiff()">
-    <span>行</span>
-  </div>
-</div>
-
-<!-- Search Bar -->
-<div class="search-bar" id="searchBar">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-  <input type="text" class="search-input" id="searchInput" placeholder="搜索内容..." oninput="performSearch()">
-  <span class="search-info" id="searchInfo">0 个匹配</span>
-  <button class="btn btn-icon" onclick="searchPrev()" title="上一个">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
-  </button>
-  <button class="btn btn-icon" onclick="searchNext()" title="下一个">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-  </button>
-  <button class="btn btn-icon" onclick="toggleSearch()" title="关闭">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-  </button>
-</div>
-
-<!-- Main Content -->
-<div class="main-content">
-  <!-- Sidebar -->
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <span>📋 差异导航</span>
-      <button class="btn btn-icon" onclick="toggleSidebar()" style="padding:3px">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
+<div id="app">
+  <div id="busy"></div>
+  <header id="top">
+    <div class="brand"><svg class="i"><use href="#i-logo"/></svg><span>Diffly</span><small>差异对比</small></div>
+    <nav class="tabs" id="tabs" aria-label="主视图">
+      <button class="tb on" data-tab="in"><svg class="i"><use href="#i-edit"/></svg>输入</button>
+      <button class="tb" data-tab="diff"><svg class="i"><use href="#i-diff"/></svg>对比<span class="bdg" data-bdg></span></button>
+      <button class="tb" data-tab="res"><svg class="i"><use href="#i-res"/></svg>结果</button>
+    </nav>
+    <div class="tools">
+      <button class="ib" id="b-swap" title="交换 A / B"><svg class="i"><use href="#i-swap"/></svg></button>
+      <button class="ib" id="b-exp" title="导出 / 下载"><svg class="i"><use href="#i-dl"/></svg></button>
+      <button class="ib" id="b-set" title="设置"><svg class="i"><use href="#i-set"/></svg></button>
+      <button class="ib hide-m" id="b-theme" title="切换深浅色"><svg class="i"><use href="#i-moon"/></svg></button>
+      <button class="ib hide-m" id="b-help" title="帮助与快捷键 (?)"><svg class="i"><use href="#i-help"/></svg></button>
     </div>
-    <div class="sidebar-content" id="diffNavList">
-      <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
-        点击"对比"按钮开始<br>差异分析
-      </div>
-    </div>
-    <div class="stats-bar" id="statsBar">
-      <div class="stats-row">
-        <span>相似度</span>
-        <span class="stat-num" id="similarity">-</span>
-      </div>
-      <div class="similarity-bar">
-        <div class="similarity-fill" id="similarityBar" style="width: 0%"></div>
-      </div>
-      <div class="stats-row">
-        <span>新增行</span>
-        <span class="stat-num stat-green" id="statAdded">0</span>
-      </div>
-      <div class="stats-row">
-        <span>删除行</span>
-        <span class="stat-num stat-red" id="statDeleted">0</span>
-      </div>
-      <div class="stats-row">
-        <span>修改行</span>
-        <span class="stat-num stat-yellow" id="statModified">0</span>
-      </div>
-      <div class="stats-row">
-        <span>总行数(左/右)</span>
-        <span class="stat-num" id="statTotal">0/0</span>
-      </div>
-    </div>
-  </div>
+  </header>
 
-  <!-- Editor Area -->
-  <div class="editor-area" id="editorArea">
-    <!-- Input Area -->
-    <div class="input-area" id="inputArea">
-      <div class="input-panel">
-        <div class="panel-header">
-          <span>📄 原始文件 (左侧)</span>
-          <div style="display:flex; gap:6px; align-items:center">
-            <span class="file-name" id="leftFileName">未选择文件</span>
-            <button class="btn" style="padding:4px 8px; font-size:11px" onclick="loadFile('left')">选择文件</button>
+  <main id="main">
+    <!-- 输入 -->
+    <section class="panel" id="p-in">
+      <div class="panes">
+        <div class="pane" id="pane-a" data-side="a">
+          <div class="ph noscroll">
+            <span class="tag a">A</span><input class="fname" id="name-a" value="原文" spellcheck="false" aria-label="A 名称">
+            <span class="meta" id="meta-a"></span><span class="spacer"></span>
+            <button class="ib" data-act="open" title="打开文件"><svg class="i"><use href="#i-open"/></svg></button>
+            <button class="ib" data-act="paste" title="从剪贴板粘贴"><svg class="i"><use href="#i-paste"/></svg></button>
+            <button class="ib" data-act="json" title="格式化 JSON"><svg class="i"><use href="#i-json"/></svg></button>
+            <button class="ib" data-act="sample" title="载入示例"><svg class="i"><use href="#i-doc"/></svg></button>
+            <button class="ib" data-act="clear" title="清空"><svg class="i"><use href="#i-trash"/></svg></button>
           </div>
+          <div class="ed"><div class="gut" id="gut-a">1</div><textarea id="ta-a" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" placeholder="在此粘贴 / 输入原文 (A)，或把文件拖进来…"></textarea></div>
         </div>
-        <div class="drop-zone" id="dropZoneLeft" style="display:none">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V7l-5-4z"/></svg>
-          <p>拖拽文件到此处</p>
-          <p class="drop-hint">或点击选择文件</p>
-        </div>
-        <textarea id="leftText" placeholder="在此粘贴原始文本内容...&#10;&#10;支持拖拽文件到此处&#10;或点击右上角'选择文件'按钮载入文件" spellcheck="false"></textarea>
-      </div>
-      <div class="input-panel">
-        <div class="panel-header">
-          <span>📄 修改文件 (右侧)</span>
-          <div style="display:flex; gap:6px; align-items:center">
-            <span class="file-name" id="rightFileName">未选择文件</span>
-            <button class="btn" style="padding:4px 8px; font-size:11px" onclick="loadFile('right')">选择文件</button>
+        <div class="pane" id="pane-b" data-side="b">
+          <div class="ph noscroll">
+            <span class="tag b">B</span><input class="fname" id="name-b" value="修改" spellcheck="false" aria-label="B 名称">
+            <span class="meta" id="meta-b"></span><span class="spacer"></span>
+            <button class="ib" data-act="open" title="打开文件"><svg class="i"><use href="#i-open"/></svg></button>
+            <button class="ib" data-act="paste" title="从剪贴板粘贴"><svg class="i"><use href="#i-paste"/></svg></button>
+            <button class="ib" data-act="json" title="格式化 JSON"><svg class="i"><use href="#i-json"/></svg></button>
+            <button class="ib" data-act="sample" title="载入示例"><svg class="i"><use href="#i-doc"/></svg></button>
+            <button class="ib" data-act="clear" title="清空"><svg class="i"><use href="#i-trash"/></svg></button>
           </div>
-        </div>
-        <textarea id="rightText" placeholder="在此粘贴修改后的文本内容...&#10;&#10;支持拖拽文件到此处&#10;或点击右上角'选择文件'按钮载入文件" spellcheck="false"></textarea>
-      </div>
-    </div>
-
-    <!-- Diff Display - Side by Side -->
-    <div class="diff-container" id="diffSideBySide">
-      <div class="diff-side-by-side" id="diffSideBySideContent">
-        <div class="diff-pane" id="leftPane">
-          <div class="diff-pane-header">📄 原始文件</div>
-          <table class="diff-table" id="leftDiffTable"></table>
-        </div>
-        <div class="diff-pane" id="rightPane">
-          <div class="diff-pane-header">📄 修改文件</div>
-          <table class="diff-table" id="rightDiffTable"></table>
+          <div class="ed"><div class="gut" id="gut-b">1</div><textarea id="ta-b" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" placeholder="在此粘贴 / 输入修改后的文本 (B)，或把文件拖进来…"></textarea></div>
         </div>
       </div>
-    </div>
-
-    <!-- Diff Display - Unified -->
-    <div class="diff-container" id="diffUnified">
-      <div class="diff-unified">
-        <table class="diff-table" id="unifiedDiffTable"></table>
+      <div class="sum noscroll" id="sum">
+        <span id="sum-t">等待输入…</span><span class="spacer"></span>
+        <button class="btn sm" id="sum-swap"><svg class="i"><use href="#i-swap"/></svg>交换</button>
+        <button class="btn sm pri" id="sum-go">查看差异</button>
       </div>
-    </div>
+    </section>
 
-    <!-- Diff Display - Inline -->
-    <div class="diff-container" id="diffInline">
-      <div class="diff-inline" id="inlineDiffContent"></div>
-    </div>
+    <!-- 对比 -->
+    <section class="panel" id="p-diff">
+      <div class="dbar noscroll" id="dbar">
+        <div class="seg" id="vseg">
+          <button data-v="split">并排</button><button data-v="unified">统一</button><button data-v="inline">行内</button><button data-v="cards" title="原创视图：全景带 + 变更卡片">全景</button>
+        </div>
+        <div class="nav">
+          <button class="ib" id="b-prev" title="上一处差异 (k / p)"><svg class="i"><use href="#i-up"/></svg></button>
+          <span class="cl" id="curlab">0/0</span>
+          <button class="ib" id="b-next" title="下一处差异 (j / n)"><svg class="i"><use href="#i-down"/></svg></button>
+        </div>
+        <span id="stats" style="display:flex;gap:4px;flex:none"></span>
+        <span class="spacer"></span>
+        <select class="sel" id="q-ws" title="空白处理" aria-label="空白处理">
+          <option value="none">空白：严格</option><option value="trim">忽略首尾空白</option><option value="change">忽略空白数量</option><option value="all">忽略全部空白</option>
+        </select>
+        <button class="tg" id="q-ic" title="忽略大小写">Aa</button>
+        <button class="tg" id="q-fold" title="折叠未变化的行">折叠</button>
+        <button class="tg" id="q-wrap" title="自动换行">换行</button>
+        <button class="tg" id="q-dual" title="对比与结果并列显示">并列结果</button>
+        <button class="btn sm" id="q-batch">批量 ▾</button>
+      </div>
+      <div id="rb" hidden><canvas id="rbc"></canvas></div>
+      <div id="dw">
+        <div id="sc"><div id="emsg" hidden></div><div id="vb"></div></div>
+        <div id="rl"><canvas id="rlc"></canvas><div id="rlt"></div></div>
+      </div>
+    </section>
+
+    <!-- 结果 -->
+    <section class="panel" id="p-res">
+      <div class="dbar noscroll" id="rbar">
+        <span class="tag r">结果</span>
+        <input class="fname" id="name-r" value="merged.txt" spellcheck="false" aria-label="结果文件名">
+        <span class="chip" id="rstate"></span>
+        <button class="btn sm" id="r-regen" hidden>重新生成</button>
+        <select class="sel" id="r-base" title="未手动选择的差异处采用哪一侧" aria-label="基准"><option value="b">基准：B</option><option value="a">基准：A</option></select>
+        <button class="ib" id="r-undo" title="撤销 (Ctrl+Z)"><svg class="i"><use href="#i-undo"/></svg></button>
+        <button class="ib" id="r-redo" title="重做 (Ctrl+Y)"><svg class="i"><use href="#i-redo"/></svg></button>
+        <button class="ib" id="r-find" title="查找替换 (Ctrl+F)"><svg class="i"><use href="#i-search"/></svg></button>
+        <button class="btn sm" id="r-tools">整理 ▾</button>
+        <span class="spacer"></span>
+        <button class="btn sm" id="r-copy"><svg class="i"><use href="#i-copy"/></svg>复制</button>
+        <button class="btn sm pri" id="r-dl"><svg class="i"><use href="#i-dl"/></svg>下载</button>
+      </div>
+      <div class="fbar noscroll" id="fbar" hidden>
+        <input type="text" id="f-q" placeholder="查找" aria-label="查找"><input type="text" id="f-r" placeholder="替换为" aria-label="替换为">
+        <button class="tg" id="f-case" title="区分大小写">Aa</button><button class="tg" id="f-re" title="正则表达式">.*</button>
+        <button class="ib" id="f-prev" title="上一个"><svg class="i"><use href="#i-up"/></svg></button><button class="ib" id="f-next" title="下一个 (Enter)"><svg class="i"><use href="#i-down"/></svg></button>
+        <button class="btn sm" id="f-one">替换</button><button class="btn sm" id="f-all">全部替换</button>
+        <span class="meta" id="f-cnt"></span>
+        <button class="ib" id="f-close" title="关闭"><svg class="i"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="ed"><div class="gut" id="gut-r">1</div><textarea id="ta-r" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" placeholder="这里是你自己的「结果」文本：与 A、B 完全独立，可随意编辑。在「对比」里选择采用 A / B 会自动生成到这里。"></textarea></div>
+      <div class="rfoot noscroll">
+        <span id="rpos">行 1，列 1</span><span id="rcnt"></span><span class="spacer"></span>
+        <label>换行符 <select class="sel" id="r-eol"><option value="keep">保持</option><option value="lf">LF</option><option value="crlf">CRLF</option></select></label>
+        <label>编码 <select class="sel" id="r-bom"><option value="0">UTF-8</option><option value="1">UTF-8 BOM</option></select></label>
+      </div>
+    </section>
+  </main>
+
+  <nav id="btabs" aria-label="底部导航">
+    <button class="tb on" data-tab="in"><svg class="i"><use href="#i-edit"/></svg>输入</button>
+    <button class="tb" data-tab="diff"><svg class="i"><use href="#i-diff"/></svg>对比<span class="bdg" data-bdg></span></button>
+    <button class="tb" data-tab="res"><svg class="i"><use href="#i-res"/></svg>结果</button>
+  </nav>
+</div>
+
+<div id="menu" hidden></div>
+<div id="toast"><span id="toast-t"></span><button id="toast-b" hidden></button></div>
+<input type="file" id="fi" hidden>
+
+<dialog id="dlg-set">
+  <div class="dh">设置<button class="ib" data-close title="关闭"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="db">
+    <div class="sr"><span>空白处理</span><select data-o="ws"><option value="none">严格比较</option><option value="trim">忽略首尾空白</option><option value="change">忽略空白数量变化</option><option value="all">忽略全部空白</option></select></div>
+    <div class="sr"><span>忽略大小写</span><input type="checkbox" class="sw" data-o="ic"></div>
+    <div class="sr"><span>忽略空行<small>空行不参与差异计算</small></span><input type="checkbox" class="sw" data-o="ib"></div>
+    <div class="sr"><span>行内高亮粒度</span><select data-o="word"><option value="word">词级</option><option value="char">字符级</option><option value="off">关闭</option></select></div>
+    <div class="sr"><span>折叠未变化的行</span><input type="checkbox" class="sw" data-o="fold"></div>
+    <div class="sr"><span>上下文行数</span><input type="number" min="0" max="50" data-o="ctx"></div>
+    <div class="sr"><span>自动换行</span><input type="checkbox" class="sw" data-o="wrap"></div>
+    <div class="sr"><span>显示空白字符<small>空格 · 与制表符 →</small></span><input type="checkbox" class="sw" data-o="show"></div>
+    <div class="sr"><span>Tab 宽度</span><select data-o="tab"><option value="2">2</option><option value="4">4</option><option value="8">8</option></select></div>
+    <div class="sr"><span>字号</span><input type="number" min="10" max="24" data-o="fs"></div>
+    <div class="sr"><span>外观</span><select data-o="theme"><option value="auto">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div>
+    <div class="sr"><span>色盲友好配色<small>用蓝 / 橙代替红 / 绿</small></span><input type="checkbox" class="sw" data-o="cb"></div>
+    <div class="sr"><span>自动保存到本机<small>仅保存在浏览器本地，不上传</small></span><input type="checkbox" class="sw" data-o="autosave"></div>
+    <div class="sr"><button class="btn" id="s-reset">恢复默认设置</button><button class="btn" id="s-wipe">清除本地数据</button></div>
   </div>
-</div>
+</dialog>
 
-<!-- Navigation Arrows -->
-<div class="nav-arrows" id="navArrows" style="display:none">
-  <button class="btn" onclick="navigateDiff('prev')" title="上一个差异 (Alt+↑)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
-  </button>
-  <button class="btn" onclick="navigateDiff('next')" title="下一个差异 (Alt+↓)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-  </button>
-  <button class="btn" onclick="backToEdit()" title="返回编辑">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-  </button>
-</div>
-
-<!-- Help Modal -->
-<div class="modal-overlay" id="helpModal">
-  <div class="modal">
-    <h2>⌨️ 快捷键 & 帮助</h2>
-    <div class="modal-body">
-      <p><kbd>Ctrl</kbd> + <kbd>Enter</kbd> — 执行对比</p>
-      <p><kbd>Ctrl</kbd> + <kbd>F</kbd> — 搜索</p>
-      <p><kbd>Alt</kbd> + <kbd>↑</kbd> — 上一个差异</p>
-      <p><kbd>Alt</kbd> + <kbd>↓</kbd> — 下一个差异</p>
-      <p><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> — 交换左右</p>
-      <p><kbd>Escape</kbd> — 关闭弹窗/搜索</p>
-      <br>
-      <h3 style="color:var(--peach); margin-bottom:8px">📖 使用说明</h3>
-      <p>1. 在左右面板中粘贴或导入要对比的文本</p>
-      <p>2. 点击"对比"按钮或按 Ctrl+Enter</p>
-      <p>3. 使用工具栏切换不同的视图模式</p>
-      <p>4. 使用侧栏导航快速跳转到差异位置</p>
-      <p>5. 支持拖拽文件到编辑区域</p>
-      <br>
-      <h3 style="color:var(--peach); margin-bottom:8px">🎨 功能说明</h3>
-      <p>• <strong>并排视图</strong>: 左右并排显示差异</p>
-      <p>• <strong>统一视图</strong>: 类似 Git diff 的统一格式</p>
-      <p>• <strong>内联视图</strong>: 逐段显示差异</p>
-      <p>• <strong>字符级</strong>: 高亮显示行内字符差异</p>
-      <p>• <strong>忽略空白</strong>: 忽略空格/制表符差异</p>
-      <p>• <strong>忽略大小写</strong>: 不区分大小写比较</p>
-      <p>• <strong>导出</strong>: 导出为 HTML 报告文件</p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn primary" onclick="closeHelp()">知道了</button>
-    </div>
+<dialog id="dlg-help">
+  <div class="dh">帮助与快捷键<button class="ib" data-close title="关闭"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="db help">
+    <h4>基本流程</h4>
+    <p>① 在「输入」粘贴 / 打开 / 拖入两份内容 → ② 在「对比」查看差异，并可逐处选择采用 A 或 B → ③ 在「结果」继续手工编辑并下载。结果区与 A、B 互不影响。</p>
+    <h4>视图</h4>
+    <p><b>并排</b>：左右对照；<b>统一</b>：类 git diff；<b>行内</b>：词级差异合并在同一行；<b>全景</b>（原创）：顶部「全景带」把两份文件的所有差异连成色带，一眼看清位置与规模，下方是逐条「变更卡片」，可直接审阅与采用。</p>
+    <h4>快捷键</h4>
+    <div class="kv"><span>切换 输入 / 对比 / 结果</span><span><kbd>Alt</kbd><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span></div>
+    <div class="kv"><span>下一处 / 上一处差异</span><span><kbd>j</kbd><kbd>k</kbd> 或 <kbd>n</kbd><kbd>p</kbd></span></div>
+    <div class="kv"><span>当前差异：采用 A / 采用 B / 清除</span><span><kbd>a</kbd><kbd>b</kbd><kbd>x</kbd></span></div>
+    <div class="kv"><span>循环切换视图</span><span><kbd>v</kbd></span></div>
+    <div class="kv"><span>跳到对比</span><span><kbd>Ctrl</kbd><kbd>Enter</kbd></span></div>
+    <div class="kv"><span>下载结果</span><span><kbd>Ctrl</kbd><kbd>S</kbd></span></div>
+    <div class="kv"><span>结果区查找替换</span><span><kbd>Ctrl</kbd><kbd>F</kbd></span></div>
+    <div class="kv"><span>帮助</span><span><kbd>?</kbd></span></div>
+    <h4>小提示</h4>
+    <p>支持 UTF-8 / GBK 文件自动识别；可导出 .patch 补丁与独立 HTML 报告；点击右侧细条或全景带可快速跳转。</p>
   </div>
-</div>
+</dialog>
 
-<!-- Hidden file inputs -->
-<input type="file" id="fileInputLeft" style="display:none" accept=".html,.htm,.css,.js,.json,.xml,.txt,.md,.py,.java,.c,.cpp,.h,.ts,.tsx,.jsx,.vue,.php,.rb,.go,.rs,.sql,.yml,.yaml,.toml,.ini,.cfg,.conf,.sh,.bat,.ps1,.csv,.log,.env">
-<input type="file" id="fileInputRight" style="display:none" accept=".html,.htm,.css,.js,.json,.xml,.txt,.md,.py,.java,.c,.cpp,.h,.ts,.tsx,.jsx,.vue,.php,.rb,.go,.rs,.sql,.yml,.yaml,.toml,.ini,.cfg,.conf,.sh,.bat,.ps1,.csv,.log,.env">
+<script type="text/plain" id="core">
+/* ===== Diffly core: 同时运行于 Worker 与主线程（仅 var / function） ===== */
+var DL = 0;
 
+function splitLines(t) {
+  if (!t) return { l: [], nl: false, eol: '\n' };
+  var eol = t.indexOf('\r\n') >= 0 ? '\r\n' : '\n';
+  var l = t.split(/\r\n|\r|\n/), nl = false;
+  if (l.length && l[l.length - 1] === '') { l.pop(); nl = true; }
+  return { l: l, nl: nl, eol: eol };
+}
+
+function makeKey(s, o) {
+  if (o.ws === 'all') s = s.replace(/\s+/g, '');
+  else if (o.ws === 'change') s = s.trim().replace(/\s+/g, ' ');
+  else if (o.ws === 'trim') s = s.trim();
+  if (o.ic) s = s.toLowerCase();
+  return s;
+}
+
+/* Myers 线性空间（中间蛇）— 只标记「A 中被删除」与「B 中被新增」的位置 */
+function diffRange(a, b, as, ae, bs, be, dA, iB) {
+  while (as < ae && bs < be && a[as] === b[bs]) { as++; bs++; }
+  while (as < ae && bs < be && a[ae - 1] === b[be - 1]) { ae--; be--; }
+  var i, j;
+  if (as === ae) { for (j = bs; j < be; j++) iB[j] = 1; return; }
+  if (bs === be) { for (i = as; i < ae; i++) dA[i] = 1; return; }
+  var n = ae - as, m = be - bs;
+  var max = (n + m + 1) >> 1, voff = max + 1, vl = 2 * max + 4;
+  var v1 = new Int32Array(vl).fill(-1), v2 = new Int32Array(vl).fill(-1);
+  v1[voff + 1] = 0; v2[voff + 1] = 0;
+  var delta = n - m, front = (delta & 1) !== 0;
+  var k1s = 0, k1e = 0, k2s = 0, k2e = 0, d, k1, k2, x1, y1, x2, y2, off, o2, o1, sx = -1, sy = -1;
+  search:
+  for (d = 0; d < max; d++) {
+    if ((d & 31) === 0 && Date.now() > DL) break;
+    for (k1 = -d + k1s; k1 <= d - k1e; k1 += 2) {
+      off = voff + k1;
+      if (k1 === -d || (k1 !== d && v1[off - 1] < v1[off + 1])) x1 = v1[off + 1]; else x1 = v1[off - 1] + 1;
+      y1 = x1 - k1;
+      while (x1 < n && y1 < m && a[as + x1] === b[bs + y1]) { x1++; y1++; }
+      v1[off] = x1;
+      if (x1 > n) k1e += 2;
+      else if (y1 > m) k1s += 2;
+      else if (front) {
+        o2 = voff + delta - k1;
+        if (o2 >= 0 && o2 < vl && v2[o2] !== -1) {
+          x2 = n - v2[o2];
+          if (x1 >= x2) { sx = x1; sy = y1; break search; }
+        }
+      }
+    }
+    for (k2 = -d + k2s; k2 <= d - k2e; k2 += 2) {
+      off = voff + k2;
+      if (k2 === -d || (k2 !== d && v2[off - 1] < v2[off + 1])) x2 = v2[off + 1]; else x2 = v2[off - 1] + 1;
+      y2 = x2 - k2;
+      while (x2 < n && y2 < m && a[as + n - x2 - 1] === b[bs + m - y2 - 1]) { x2++; y2++; }
+      v2[off] = x2;
+      if (x2 > n) k2e += 2;
+      else if (y2 > m) k2s += 2;
+      else if (!front) {
+        o1 = voff + delta - k2;
+        if (o1 >= 0 && o1 < vl && v1[o1] !== -1) {
+          x1 = v1[o1]; y1 = voff + x1 - o1;
+          if (x1 >= n - x2) { sx = x1; sy = y1; break search; }
+        }
+      }
+    }
+  }
+  if (sx < 0 || (sx === 0 && sy === 0) || (sx === n && sy === m)) {
+    for (i = as; i < ae; i++) dA[i] = 1;
+    for (j = bs; j < be; j++) iB[j] = 1;
+    return;
+  }
+  diffRange(a, b, as, as + sx, bs, bs + sy, dA, iB);
+  diffRange(a, b, as + sx, ae, bs + sy, be, dA, iB);
+}
+
+/* 行级差异 → rows: Int32Array [t,a,b]*n ；t: 0 相同 1 删除 2 新增 3 修改(成对) */
+function diffCore(A, B, o) {
+  var map = new Map(), nid = 0, i, k, id, s;
+  var ka = [], ia = [], kb = [], ibx = [];
+  for (i = 0; i < A.length; i++) {
+    s = A[i]; if (o.ib && s.trim() === '') continue;
+    s = makeKey(s, o); id = map.get(s);
+    if (id === undefined) { id = nid++; map.set(s, id); }
+    ka.push(id); ia.push(i);
+  }
+  for (i = 0; i < B.length; i++) {
+    s = B[i]; if (o.ib && s.trim() === '') continue;
+    s = makeKey(s, o); id = map.get(s);
+    if (id === undefined) { id = nid++; map.set(s, id); }
+    kb.push(id); ibx.push(i);
+  }
+  var ca = new Int32Array(nid), cb = new Int32Array(nid);
+  for (k = 0; k < ka.length; k++) ca[ka[k]]++;
+  for (k = 0; k < kb.length; k++) cb[kb[k]]++;
+  var dA = new Uint8Array(A.length), iB = new Uint8Array(B.length);
+  var ra = [], rai = [], rb = [], rbi = [];
+  for (k = 0; k < ka.length; k++) { if (cb[ka[k]] === 0) dA[ia[k]] = 1; else { ra.push(ka[k]); rai.push(ia[k]); } }
+  for (k = 0; k < kb.length; k++) { if (ca[kb[k]] === 0) iB[ibx[k]] = 1; else { rb.push(kb[k]); rbi.push(ibx[k]); } }
+  var dr = new Uint8Array(ra.length), ir = new Uint8Array(rb.length);
+  diffRange(ra, rb, 0, ra.length, 0, rb.length, dr, ir);
+  for (k = 0; k < ra.length; k++) if (dr[k]) dA[rai[k]] = 1;
+  for (k = 0; k < rb.length; k++) if (ir[k]) iB[rbi[k]] = 1;
+
+  var out = [], na = A.length, nb = B.length, p = 0, q = 0, aEq, bEq, p2, q2, nd, ni, mm;
+  while (p < na || q < nb) {
+    aEq = p < na && !dA[p]; bEq = q < nb && !iB[q];
+    if (aEq && bEq) {
+      if (o.ib) {
+        var abl = A[p].trim() === '', bbl = B[q].trim() === '';
+        if (abl && !bbl) { out.push(0, p, -1); p++; continue; }
+        if (bbl && !abl) { out.push(0, -1, q); q++; continue; }
+      }
+      out.push(0, p, q); p++; q++; continue;
+    }
+    p2 = p; while (p2 < na && dA[p2]) p2++;
+    q2 = q; while (q2 < nb && iB[q2]) q2++;
+    if (p2 === p && q2 === q) {
+      if (p < na) { out.push(0, p, -1); p++; } else { out.push(0, -1, q); q++; }
+      continue;
+    }
+    nd = p2 - p; ni = q2 - q; mm = nd < ni ? nd : ni;
+    for (k = 0; k < mm; k++) out.push(3, p + k, q + k);
+    for (k = mm; k < nd; k++) out.push(1, p + k, -1);
+    for (k = mm; k < ni; k++) out.push(2, -1, q + k);
+    p = p2; q = q2;
+  }
+  return Int32Array.from(out);
+}
+
+function diffText(ta, tb, o) {
+  DL = Date.now() + (o.timeout || 4000);
+  return { rows: diffCore(splitLines(ta).l, splitLines(tb).l, o) };
+}
+
+/* 行内（词 / 字符）差异 */
+var RE_W = /\s+|\w+|[\u3400-\u9fff]|[^\s\w]/gu;
+function tokenize(s, mode) { return mode === 'char' ? Array.from(s) : (s.match(RE_W) || []); }
+
+function wordDiff(a, b, mode, o) {
+  if (a === b) return { ops: [[0, a, b]], sim: 1 };
+  var ta = tokenize(a, mode), tb = tokenize(b, mode), map = new Map(), nid = 0, i, j, id;
+  var wsl = (o.ws === 'change' || o.ws === 'all');
+  function key(t) {
+    if (o.ic) t = t.toLowerCase();
+    if (wsl && /^\s+$/.test(t)) t = (o.ws === 'all') ? '' : ' ';
+    id = map.get(t);
+    if (id === undefined) { id = nid++; map.set(t, id); }
+    return id;
+  }
+  var ka = new Array(ta.length), kb = new Array(tb.length);
+  for (i = 0; i < ta.length; i++) ka[i] = key(ta[i]);
+  for (i = 0; i < tb.length; i++) kb[i] = key(tb[i]);
+  var dA = new Uint8Array(ta.length), iB = new Uint8Array(tb.length);
+  DL = Date.now() + 40;
+  diffRange(ka, kb, 0, ka.length, 0, kb.length, dA, iB);
+  var ops = [], eq = 0;
+  function push(t, x, y) {
+    var l = ops.length;
+    if (l && ops[l - 1][0] === t) { ops[l - 1][1] += x; ops[l - 1][2] += y; } else ops.push([t, x, y]);
+  }
+  i = 0; j = 0;
+  while (i < ta.length || j < tb.length) {
+    if (i < ta.length && j < tb.length && !dA[i] && !iB[j]) { push(0, ta[i], tb[j]); eq += ta[i].length; i++; j++; continue; }
+    while (i < ta.length && dA[i]) { push(-1, ta[i], ''); i++; }
+    while (j < tb.length && iB[j]) { push(1, '', tb[j]); j++; }
+  }
+  var tot = a.length + b.length;
+  return { ops: ops, sim: tot ? (2 * eq) / tot : 1 };
+}
+
+</script>
 <script>
-// ==================== State ====================
-let state = {
-  viewMode: 'sideBySide', // sideBySide, unified, inline
-  charDiff: false,
-  ignoreWhitespace: false,
-  ignoreCase: false,
-  wordWrap: false,
-  isDiffMode: false,
-  diffResult: null,
-  currentDiffIndex: -1,
-  diffPositions: [],
-  searchMatches: [],
-  searchIndex: -1,
-  isLightTheme: false,
-  sidebarVisible: true,
+(function () {
+'use strict';
+const $ = (s, r) => (r || document).querySelector(s);
+const $ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const CORE_SRC = $('#core').textContent;
+(0, eval)(CORE_SRC); /* 主线程也载入核心：splitLines / wordDiff / diffText */
+
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
+const esc = s => s.replace(/[&<>]/g, c => ESC[c]);
+const fmtN = n => n.toLocaleString('en-US');
+const isNarrow = () => matchMedia('(max-width:719px)').matches;
+const isWide = () => matchMedia('(min-width:1000px)').matches;
+const LS = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
 };
 
-// ==================== LCS-based Diff ====================
-function computeLCS(a, b) {
-  const m = a.length, n = b.length;
-  const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
-  
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (linesEqual(a[i - 1], b[j - 1])) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-      }
-    }
-  }
-  return dp;
+/* ---------- 设置 ---------- */
+const DEF = { ws: 'none', ic: false, ib: false, word: 'word', fold: true, ctx: 3, wrap: isNarrow(), show: false, tab: 4, fs: 13, view: isNarrow() ? 'unified' : 'split', theme: 'auto', cb: false, autosave: true };
+const O = Object.assign({}, DEF, LS.get('diffly.o') || {});
+const S = {
+  A: '', B: '', la: [], lb: [], infoA: null, infoB: null,
+  rows: new Int32Array(0), nr: 0, hunks: [], rh: new Int32Array(0),
+  choice: new Map(), cur: -1, wd: new Map(), exp: new Set(), cardExp: new Set(),
+  stats: { add: 0, del: 0, n: 0, sim: 1 }, tab: 'in', dual: false,
+  viewDirty: true, resDirty: false, base: 'b', resSnap: null, ready: false
+};
+
+/* ---------- 提示 / 菜单 ---------- */
+let toastTimer = 0;
+function hideToast() { $('#toast').classList.remove('show'); }
+function toast(msg, label, fn) {
+  $('#toast-t').textContent = msg;
+  const b = $('#toast-b');
+  if (label) { b.hidden = false; b.textContent = label; b.onclick = () => { hideToast(); fn(); }; } else b.hidden = true;
+  $('#toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, label ? 6000 : 2300);
+}
+let menuAnchor = null;
+function closeMenu() { $('#menu').hidden = true; menuAnchor = null; }
+function openMenu(anchor, items) {
+  const m = $('#menu');
+  if (!m.hidden && menuAnchor === anchor) { closeMenu(); return; }
+  m.innerHTML = '';
+  items.forEach(it => {
+    if (it === '-') { const d = document.createElement('div'); d.className = 'msep'; m.appendChild(d); return; }
+    const b = document.createElement('button');
+    b.className = 'mi'; b.textContent = it.label;
+    if (it.hint) { const s = document.createElement('small'); s.textContent = it.hint; b.appendChild(s); }
+    b.onclick = () => { closeMenu(); it.fn(); };
+    m.appendChild(b);
+  });
+  m.hidden = false; menuAnchor = anchor;
+  const r = anchor.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  let left = Math.min(Math.max(8, r.right - w), innerWidth - w - 8);
+  let top = r.bottom + 6;
+  if (top + h > innerHeight - 8) top = Math.max(8, r.top - h - 6);
+  m.style.left = left + 'px'; m.style.top = top + 'px';
+}
+document.addEventListener('pointerdown', e => {
+  if (!$('#menu').hidden && !e.target.closest('#menu') && !(menuAnchor && menuAnchor.contains(e.target))) closeMenu();
+}, true);
+
+/* ---------- 外观 ---------- */
+const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+function applyTheme() {
+  const dark = O.theme === 'dark' || (O.theme === 'auto' && darkMQ.matches);
+  const r = document.documentElement;
+  r.toggleAttribute('data-dark', dark); r.toggleAttribute('data-cb', !!O.cb);
+  $('meta[name=theme-color]').content = dark ? '#161b24' : '#4f46e5';
+}
+darkMQ.addEventListener && darkMQ.addEventListener('change', applyTheme);
+function applyFont() {
+  const r = document.documentElement.style;
+  r.setProperty('--fs', O.fs + 'px'); r.setProperty('--lh', Math.round(O.fs * 1.55) + 'px'); r.setProperty('--tab', O.tab);
+  measureChar();
+}
+let CW = 8;
+function measureChar() {
+  const s = document.createElement('span');
+  s.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:var(--fs)/1 var(--mono)';
+  s.textContent = 'M'.repeat(100); document.body.appendChild(s);
+  CW = s.getBoundingClientRect().width / 100 || 8; s.remove();
+}
+function applyWrap() {
+  document.body.classList.toggle('wrap', !!O.wrap);
+  ['a', 'b', 'r'].forEach(k => $('#ta-' + k).wrap = O.wrap ? 'soft' : 'off');
+}
+function syncUI() {
+  $('[data-o]').forEach(el => { const v = O[el.dataset.o]; if (el.type === 'checkbox') el.checked = !!v; else el.value = v; });
+  $('#q-ws').value = O.ws;
+  $('#q-ic').classList.toggle('on', O.ic);
+  $('#q-fold').classList.toggle('on', O.fold);
+  $('#q-wrap').classList.toggle('on', O.wrap);
+  $('#q-dual').classList.toggle('on', S.dual);
+  $('#vseg button').forEach(b => b.classList.toggle('on', b.dataset.v === O.view));
+}
+function setOpt(k, v) {
+  if (O[k] === v) return;
+  O[k] = v; LS.set('diffly.o', O); syncUI();
+  if (k === 'ws' || k === 'ic' || k === 'ib') { scheduleDiff(0); return; }
+  if (k === 'theme' || k === 'cb') { applyTheme(); return; }
+  if (k === 'wrap') applyWrap();
+  if (k === 'fs' || k === 'tab') applyFont();
+  if (k === 'word') S.wd.clear();
+  if (k === 'autosave') { if (v) saveSession(true); else LS.del('diffly.s'); return; }
+  if (k === 'ctx') S.exp.clear();
+  S.viewDirty = true; if (isDiffVisible()) renderView(true);
+  if (k === 'wrap' || k === 'fs') { updateGut('a'); updateGut('b'); updateGut('r'); }
 }
 
-function linesEqual(a, b) {
-  let la = a, lb = b;
-  if (state.ignoreCase) { la = la.toLowerCase(); lb = lb.toLowerCase(); }
-  if (state.ignoreWhitespace) { la = la.replace(/\s+/g, ''); lb = lb.replace(/\s+/g, ''); }
-  return la === lb;
+/* ---------- 文本框 + 行号 ---------- */
+function lineCount(s) { let n = 1, i = -1; while ((i = s.indexOf('\n', i + 1)) >= 0) n++; return n; }
+function setGutN(g, n) {
+  if (!g.firstChild) g.appendChild(document.createTextNode('1'));
+  const node = g.firstChild, cur = g._n || 1;
+  if (g._n === n) return;
+  if (g._n && n > cur) { let s = ''; for (let i = cur + 1; i <= n; i++) s += '\n' + i; node.appendData(s); }
+  else { const p = new Array(n); for (let i = 0; i < n; i++) p[i] = i + 1; node.data = p.join('\n'); }
+  g._n = n; g.style.minWidth = 'calc(' + String(n).length + 'ch + 17px)';
+}
+function updateGut(k) {
+  if (O.wrap) return;
+  const ta = $('#ta-' + k); setGutN($('#gut-' + k), lineCount(ta.value)); $('#gut-' + k).scrollTop = ta.scrollTop;
+}
+['a', 'b', 'r'].forEach(k => {
+  const ta = $('#ta-' + k);
+  ta.addEventListener('scroll', () => { $('#gut-' + k).scrollTop = ta.scrollTop; }, { passive: true });
+});
+function metaOf(text) {
+  const n = text ? splitLines(text).l.length : 0;
+  return fmtN(n) + ' 行 · ' + fmtN(text.length) + ' 字符';
 }
 
-function backtrackDiff(dp, a, b) {
-  const result = [];
-  let i = a.length, j = b.length;
-  
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && linesEqual(a[i - 1], b[j - 1])) {
-      result.unshift({ type: 'equal', left: a[i - 1], right: b[j - 1], leftLine: i, rightLine: j });
-      i--; j--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      result.unshift({ type: 'add', right: b[j - 1], rightLine: j });
-      j--;
-    } else if (i > 0) {
-      result.unshift({ type: 'del', left: a[i - 1], leftLine: i });
-      i--;
-    }
+/* ---------- 差异计算管线（Worker + 回退） ---------- */
+let worker = null, reqId = 0, pend = null, inflight = false, sentAt = 0, dTimer = 0, busyT = 0;
+function mkWorker() {
+  try {
+    const src = CORE_SRC + '\nself.onmessage=function(e){var d=e.data;var r=diffText(d.a,d.b,d.o);self.postMessage({id:d.id,rows:r.rows},[r.rows.buffer]);};';
+    worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    worker.onmessage = e => onRows(e.data.id, e.data.rows);
+    worker.onerror = () => { worker = null; if (pend) requestDiffNow(); };
+  } catch (e) { worker = null; }
+}
+let busyShown = false;
+function setBusy(on) {
+  const b = $('#busy');
+  clearTimeout(busyT);
+  if (on) { busyT = setTimeout(() => { busyShown = true; b.style.transition = 'width 2s'; b.style.width = '85%'; }, 160); }
+  else if (busyShown) {
+    busyShown = false; b.style.transition = 'width .15s'; b.style.width = '100%';
+    busyT = setTimeout(() => { b.style.transition = 'none'; b.style.width = '0'; }, 200);
   }
-  return result;
+}
+function diffOpts() { return { ws: O.ws, ic: O.ic, ib: O.ib, timeout: worker ? 6000 : 1500 }; }
+function scheduleDiff(delay) {
+  clearTimeout(dTimer);
+  const d = delay != null ? delay : Math.min(320, 30 + (S.A.length + S.B.length) / 5000);
+  dTimer = setTimeout(requestDiffNow, d);
+}
+function requestDiffNow() {
+  const id = ++reqId;
+  pend = { id, la: splitLines(S.A), lb: splitLines(S.B) };
+  if (S.A.length + S.B.length > 20000) setBusy(true);
+  if (worker) {
+    if (inflight && Date.now() - sentAt > 300) { try { worker.terminate(); } catch (e) {} mkWorker(); }
+    if (worker) { inflight = true; sentAt = Date.now(); worker.postMessage({ id, a: S.A, b: S.B, o: diffOpts() }); return; }
+  }
+  setTimeout(() => { if (id !== reqId) return; onRows(id, diffText(S.A, S.B, diffOpts()).rows); }, 0);
+}
+function onRows(id, rows) {
+  inflight = id !== reqId;
+  if (id !== reqId || !pend || pend.id !== id) return;
+  S.la = pend.la.l; S.lb = pend.lb.l; S.infoA = pend.la; S.infoB = pend.lb;
+  S.rows = rows; S.nr = rows.length / 3;
+  computeHunks();
+  S.choice.clear(); S.wd.clear(); S.exp.clear(); S.cardExp.clear(); S.cur = -1; S.viewDirty = true;
+  updateSummary();
+  autoResult();
+  if (isDiffVisible()) renderView(true);
+  setBusy(false);
+  saveSession();
+}
+function computeHunks() {
+  const R = S.rows, n = S.nr, H = [], rh = new Int32Array(n).fill(-1);
+  let ap = 0, bp = 0, cur = null, eq = 0, add = 0, del = 0;
+  for (let i = 0; i < n; i++) {
+    const t = R[3 * i], a = R[3 * i + 1], b = R[3 * i + 2];
+    if (t !== 0) {
+      if (!cur) { cur = { s: i, e: i + 1, a0: ap, b0: bp, a1: ap, b1: bp, nd: 0, ni: 0, ty: 'mod' }; H.push(cur); }
+      cur.e = i + 1; rh[i] = H.length - 1;
+      if (a >= 0) { cur.nd++; del++; }
+      if (b >= 0) { cur.ni++; add++; }
+    } else { cur = null; if (a >= 0 && b >= 0) eq++; }
+    if (a >= 0) ap = a + 1;
+    if (b >= 0) bp = b + 1;
+    if (cur) { cur.a1 = ap; cur.b1 = bp; }
+  }
+  H.forEach(h => { h.ty = h.nd && h.ni ? 'mod' : h.nd ? 'del' : 'add'; });
+  S.hunks = H; S.rh = rh;
+  const tot = S.la.length + S.lb.length;
+  S.stats = { add, del, n: H.length, sim: tot ? (2 * eq) / tot : 1 };
+}
+function updateSummary() {
+  const st = S.stats, empty = !S.A && !S.B;
+  const same = !empty && st.n === 0;
+  $('[data-bdg]').forEach(b => { b.textContent = st.n ? (st.n > 999 ? '999+' : st.n) : (same ? '✓' : ''); b.classList.toggle('ok', same); });
+  $('#sum-t').innerHTML = empty ? '等待输入…' : same ? '<span class="chip ok">✓ 两侧内容相同</span>' :
+    '<span class="chip warn">' + fmtN(st.n) + ' 处差异</span><span class="chip add">+' + fmtN(st.add) + '</span><span class="chip del">−' + fmtN(st.del) + '</span><span>相似度 ' + (st.sim * 100).toFixed(st.sim > .995 && st.sim < 1 ? 1 : 0) + '%</span>';
+  $('#stats').innerHTML = same || empty ? '' : '<span class="chip add">+' + fmtN(st.add) + '</span><span class="chip del">−' + fmtN(st.del) + '</span>';
+  updateCurLab();
+}
+function updateCurLab() { $('#curlab').textContent = (S.cur >= 0 ? S.cur + 1 : '–') + '/' + S.hunks.length; }
+
+/* ---------- 会话保存 ---------- */
+let saveT = 0;
+function saveSession(now) {
+  if (!O.autosave) return;
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    if (S.A.length + S.B.length > 2e6) { LS.del('diffly.s'); return; }
+    LS.set('diffly.s', { a: S.A, b: S.B, na: $('#name-a').value, nb: $('#name-b').value, r: S.resDirty ? $('#ta-r').value : null, nr: $('#name-r').value });
+  }, now ? 0 : 700);
 }
 
-function computeDiff(textA, textB) {
-  const linesA = textA.split('\n');
-  const linesB = textB.split('\n');
-  const dp = computeLCS(linesA, linesB);
-  const rawDiff = backtrackDiff(dp, linesA, linesB);
-  
-  // Detect modifications (adjacent del + add)
-  const result = [];
-  let idx = 0;
-  while (idx < rawDiff.length) {
-    if (rawDiff[idx].type === 'del') {
-      // Collect consecutive dels
-      const dels = [];
-      const startIdx = idx;
-      while (idx < rawDiff.length && rawDiff[idx].type === 'del') {
-        dels.push(rawDiff[idx]);
-        idx++;
-      }
-      // Collect consecutive adds
-      const adds = [];
-      while (idx < rawDiff.length && rawDiff[idx].type === 'add') {
-        adds.push(rawDiff[idx]);
-        idx++;
-      }
-      // Pair them as modifications
-      const pairs = Math.min(dels.length, adds.length);
-      for (let p = 0; p < pairs; p++) {
-        result.push({
-          type: 'mod',
-          left: dels[p].left,
-          right: adds[p].right,
-          leftLine: dels[p].leftLine,
-          rightLine: adds[p].rightLine
-        });
-      }
-      // Remaining dels
-      for (let p = pairs; p < dels.length; p++) {
-        result.push(dels[p]);
-      }
-      // Remaining adds
-      for (let p = pairs; p < adds.length; p++) {
-        result.push(adds[p]);
-      }
-    } else {
-      result.push(rawDiff[idx]);
-      idx++;
-    }
-  }
-  
-  return { diff: result, linesA, linesB };
+/* ---------- 标签页 ---------- */
+function isDiffVisible() { return S.tab === 'diff' || (S.dual && S.tab === 'res' && isWide()); }
+function setTab(t) {
+  S.tab = t; document.body.dataset.tab = t;
+  $('[data-tab]').forEach(b => { if (b.classList.contains('tb')) b.classList.toggle('on', b.dataset.tab === t); });
+  if (isDiffVisible()) { renderView(S.viewDirty); }
+  if (t === 'res') { updateGut('r'); }
+  if (t === 'in') { updateGut('a'); updateGut('b'); }
 }
+document.addEventListener('click', e => {
+  const tb = e.target.closest('.tb[data-tab]'); if (tb) setTab(tb.dataset.tab);
+});
 
-// ==================== Character-level diff ====================
-function charDiff(strA, strB) {
-  if (!state.charDiff) return { left: escapeHtml(strA), right: escapeHtml(strB) };
-  
-  const a = strA.split('');
-  const b = strB.split('');
-  const m = a.length, n = b.length;
-  
-  // Simple LCS for chars
-  const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (a[i-1] === b[j-1]) dp[i][j] = dp[i-1][j-1] + 1;
-      else dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);
-    }
-  }
-  
-  // Backtrack
-  const ops = [];
-  let i = m, j = n;
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
-      ops.unshift({ type: 'equal', char: a[i-1] });
-      i--; j--;
-    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
-      ops.unshift({ type: 'add', char: b[j-1] });
-      j--;
-    } else {
-      ops.unshift({ type: 'del', char: a[i-1] });
-      i--;
-    }
-  }
-  
-  let leftHtml = '', rightHtml = '';
-  let delBuf = '', addBuf = '';
-  
-  const flushBuffers = () => {
-    if (delBuf) { leftHtml += `<span class="char-del">${escapeHtml(delBuf)}</span>`; delBuf = ''; }
-    if (addBuf) { rightHtml += `<span class="char-add">${escapeHtml(addBuf)}</span>`; addBuf = ''; }
-  };
-  
-  for (const op of ops) {
-    if (op.type === 'equal') {
-      flushBuffers();
-      leftHtml += escapeHtml(op.char);
-      rightHtml += escapeHtml(op.char);
-    } else if (op.type === 'del') {
-      delBuf += op.char;
-    } else {
-      addBuf += op.char;
-    }
-  }
-  flushBuffers();
-  
-  return { left: leftHtml, right: rightHtml };
+/* ---------- 输入面板 ---------- */
+const SAMPLE_A = 'function greet(name) {\n  console.log("Hello, " + name);\n  return true;\n}\n\nconst users = ["Alice", "Bob", "Carol"];\nfor (let i = 0; i < users.length; i++) {\n  greet(users[i]);\n}\n\n// TODO: 添加错误处理\nexport default greet;\n';
+const SAMPLE_B = 'function greet(name, greeting = "Hello") {\n  console.log(`${greeting}, ${name}!`);\n  return true;\n}\n\nconst users = ["Alice", "Bob", "Carol", "Dave"];\nusers.forEach((u) => greet(u));\n\n// 已添加错误处理\ntry {\n  greet();\n} catch (e) {\n  console.error(e);\n}\n\nexport default greet;\n';
+function setSide(side, text, name, now) {
+  const K = side.toUpperCase(), ta = $('#ta-' + side);
+  S[K] = text; ta.value = text;
+  if (name != null) $('#name-' + side).value = name;
+  $('#meta-' + side).textContent = text ? metaOf(text) : '';
+  updateGut(side); scheduleDiff(now ? 0 : undefined); saveSession();
 }
-
-// ==================== Rendering ====================
-function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function renderDiff() {
-  if (!state.diffResult) return;
-  
-  const { diff, linesA, linesB } = state.diffResult;
-  
-  switch (state.viewMode) {
-    case 'sideBySide': renderSideBySide(diff); break;
-    case 'unified': renderUnified(diff); break;
-    case 'inline': renderInline(diff); break;
+async function readFileText(file) {
+  const u8 = new Uint8Array(await file.arrayBuffer());
+  let text;
+  if (u8[0] === 0xFF && u8[1] === 0xFE) text = new TextDecoder('utf-16le').decode(u8);
+  else if (u8[0] === 0xFE && u8[1] === 0xFF) text = new TextDecoder('utf-16be').decode(u8);
+  else {
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(u8); }
+    catch (e) { try { text = new TextDecoder('gbk').decode(u8); } catch (e2) { text = new TextDecoder().decode(u8); } }
   }
-  
-  updateStats(diff, linesA, linesB);
-  updateNavigation(diff);
-  syncScroll();
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  return text;
 }
-
-function renderSideBySide(diff) {
-  const contextLines = parseInt(document.getElementById('contextLines').value) || 3;
-  const leftRows = [];
-  const rightRows = [];
-  
-  // Determine which lines to show based on context
-  const visibleIndices = getVisibleIndices(diff, contextLines);
-  let lastVisible = -1;
-  
-  for (let i = 0; i < diff.length; i++) {
-    if (!visibleIndices.has(i)) {
-      if (lastVisible === i - 1 && i > 0) {
-        // Add fold marker
-        const foldCount = getConsecutiveHiddenCount(i, diff, visibleIndices);
-        const foldHtml = `<tr class="diff-line-empty"><td class="line-num"></td><td class="line-content fold-marker" onclick="expandFold(this, ${i}, ${foldCount})" style="text-align:center; color:var(--text-muted)">⋯ 折叠 ${foldCount} 行相同内容 ⋯</td></tr>`;
-        leftRows.push(foldHtml);
-        rightRows.push(foldHtml);
-      }
-      continue;
-    }
-    lastVisible = i;
-    
-    const d = diff[i];
-    if (d.type === 'equal') {
-      leftRows.push(makeRow(d.leftLine, escapeHtml(d.left), ''));
-      rightRows.push(makeRow(d.rightLine, escapeHtml(d.right), ''));
-    } else if (d.type === 'mod') {
-      const cd = charDiff(d.left, d.right);
-      leftRows.push(makeRow(d.leftLine, cd.left, 'diff-line-del', 'diff-change'));
-      rightRows.push(makeRow(d.rightLine, cd.right, 'diff-line-add', 'diff-change'));
-    } else if (d.type === 'del') {
-      leftRows.push(makeRow(d.leftLine, escapeHtml(d.left), 'diff-line-del', 'diff-change'));
-      rightRows.push(makeRow('', '', 'diff-line-empty'));
-    } else if (d.type === 'add') {
-      leftRows.push(makeRow('', '', 'diff-line-empty'));
-      rightRows.push(makeRow(d.rightLine, escapeHtml(d.right), 'diff-line-add', 'diff-change'));
-    }
-  }
-  
-  document.getElementById('leftDiffTable').innerHTML = leftRows.join('');
-  document.getElementById('rightDiffTable').innerHTML = rightRows.join('');
+async function loadFile(side, file) {
+  if (!file) return;
+  try {
+    const t = await readFileText(file);
+    if (t.indexOf('\u0000') >= 0) { toast('“' + file.name + '”看起来是二进制文件，无法按文本对比'); return; }
+    setSide(side, t, file.name, true); toast('已载入 ' + file.name);
+    if (!S.nameRTouched) { const m = file.name.match(/^(.*?)(\.[^.]+)?$/); $('#name-r').value = m[1] + '.merged' + (m[2] || '.txt'); }
+  } catch (e) { toast('读取文件失败'); }
 }
-
-function makeRow(lineNum, content, className, dataClass) {
-  const dc = dataClass ? ` data-diff="true"` : '';
-  return `<tr class="${className}"${dc}><td class="line-num">${lineNum}</td><td class="line-content">${content || '&nbsp;'}</td></tr>`;
+let fiSide = 'a';
+$('#fi').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; loadFile(fiSide, f); });
+['a', 'b'].forEach(side => {
+  const pane = $('#pane-' + side), ta = $('#ta-' + side);
+  ta.addEventListener('input', () => {
+    S[side.toUpperCase()] = ta.value;
+    $('#meta-' + side).textContent = ta.value ? metaOf(ta.value) : '';
+    updateGut(side); scheduleDiff(); saveSession();
+  });
+  $('#name-' + side).addEventListener('input', () => saveSession());
+  pane.addEventListener('click', async e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const act = b.dataset.act;
+    if (act === 'open') { fiSide = side; $('#fi').click(); }
+    else if (act === 'clear') { const old = S[side.toUpperCase()]; if (!old) return; setSide(side, '', null, true); toast('已清空', '撤销', () => setSide(side, old, null, true)); }
+    else if (act === 'sample') { setSide(side, side === 'a' ? SAMPLE_A : SAMPLE_B, side === 'a' ? 'greet.old.js' : 'greet.new.js', true); }
+    else if (act === 'json') {
+      try { setSide(side, JSON.stringify(JSON.parse(ta.value), null, 2) + '\n', null, true); toast('已格式化 JSON'); }
+      catch (err) { toast('不是有效的 JSON：' + String(err.message).slice(0, 60)); }
+    } else if (act === 'paste') {
+      try { const t = await navigator.clipboard.readText(); if (t) { setSide(side, t, null, true); toast('已粘贴'); } else toast('剪贴板为空'); }
+      catch (err) { ta.focus(); toast('浏览器不允许读取剪贴板，请在文本框内按 Ctrl/⌘+V'); }
+    }
+  });
+  let dragN = 0;
+  pane.addEventListener('dragenter', e => { e.preventDefault(); dragN++; pane.classList.add('drag'); });
+  pane.addEventListener('dragleave', () => { if (--dragN <= 0) { dragN = 0; pane.classList.remove('drag'); } });
+  pane.addEventListener('dragover', e => e.preventDefault());
+  pane.addEventListener('drop', e => {
+    e.preventDefault(); dragN = 0; pane.classList.remove('drag');
+    const fs = e.dataTransfer.files;
+    if (fs && fs.length) {
+      loadFile(side, fs[0]);
+      if (fs.length > 1) loadFile(side === 'a' ? 'b' : 'a', fs[1]);
+    } else { const t = e.dataTransfer.getData('text'); if (t) setSide(side, t, null, true); }
+  });
+});
+function swapAB() {
+  const a = S.A, b = S.B, na = $('#name-a').value, nb = $('#name-b').value;
+  setSide('a', b, nb, true); setSide('b', a, na, true); toast('已交换 A 与 B');
 }
+$('#b-swap').onclick = swapAB; $('#sum-swap').onclick = swapAB;
+$('#sum-go').onclick = () => setTab('diff');
 
-function renderUnified(diff) {
-  const contextLines = parseInt(document.getElementById('contextLines').value) || 3;
-  const visibleIndices = getVisibleIndices(diff, contextLines);
-  const rows = [];
-  let lastVisible = -1;
-  
-  for (let i = 0; i < diff.length; i++) {
-    if (!visibleIndices.has(i)) {
-      if (lastVisible === i - 1 && i > 0) {
-        const foldCount = getConsecutiveHiddenCount(i, diff, visibleIndices);
-        rows.push(`<tr class="diff-line-empty"><td class="line-num"></td><td class="line-num"></td><td class="unified-prefix"></td><td class="line-content fold-marker" style="text-align:center">⋯ 折叠 ${foldCount} 行 ⋯</td></tr>`);
-      }
-      continue;
-    }
-    lastVisible = i;
-    
-    const d = diff[i];
-    if (d.type === 'equal') {
-      rows.push(`<tr><td class="line-num">${d.leftLine}</td><td class="line-num">${d.rightLine}</td><td class="unified-prefix"></td><td class="line-content">${escapeHtml(d.left)}</td></tr>`);
-    } else if (d.type === 'mod') {
-      const cd = charDiff(d.left, d.right);
-      rows.push(`<tr class="diff-line-del" data-diff="true"><td class="line-num">${d.leftLine}</td><td class="line-num"></td><td class="unified-prefix prefix-del">-</td><td class="line-content">${cd.left}</td></tr>`);
-      rows.push(`<tr class="diff-line-add" data-diff="true"><td class="line-num"></td><td class="line-num">${d.rightLine}</td><td class="unified-prefix prefix-add">+</td><td class="line-content">${cd.right}</td></tr>`);
-    } else if (d.type === 'del') {
-      rows.push(`<tr class="diff-line-del" data-diff="true"><td class="line-num">${d.leftLine}</td><td class="line-num"></td><td class="unified-prefix prefix-del">-</td><td class="line-content">${escapeHtml(d.left)}</td></tr>`);
-    } else if (d.type === 'add') {
-      rows.push(`<tr class="diff-line-add" data-diff="true"><td class="line-num"></td><td class="line-num">${d.rightLine}</td><td class="unified-prefix prefix-add">+</td><td class="line-content">${escapeHtml(d.right)}</td></tr>`);
-    }
-  }
-  
-  document.getElementById('unifiedDiffTable').innerHTML = rows.join('');
+/* ================= 视图引擎 ================= */
+const SIM = 0.3;                       /* 行内高亮的最低相似度，过低则只做整行着色 */
+const LH = () => Math.round(O.fs * 1.55);
+let items = [], chunks = [], io = null, CHk = 64;
+
+function fx(s) {
+  s = esc(s);
+  if (O.show) s = s.replace(/ /g, '<span class="sp">·</span>').replace(/\t/g, '<span class="sp">→</span>\t');
+  return s;
 }
-
-function renderInline(diff) {
-  const container = document.getElementById('inlineDiffContent');
-  const blocks = [];
-  let currentBlock = null;
-  
-  for (const d of diff) {
-    if (d.type === 'equal') {
-      if (currentBlock) {
-        blocks.push(currentBlock);
-        currentBlock = null;
-      }
-    } else {
-      if (!currentBlock) {
-        currentBlock = { items: [], startLeft: d.leftLine || '?', startRight: d.rightLine || '?' };
-      }
-      currentBlock.items.push(d);
-    }
+function segsHTML(segs) { let o = ''; for (let i = 0; i < segs.length; i++) o += segs[i][0] ? '<mark>' + fx(segs[i][1]) + '</mark>' : fx(segs[i][1]); return o; }
+function sideSegs(c, side) {
+  const out = [];
+  for (let i = 0; i < c.ops.length; i++) {
+    const p = c.ops[i], t = p[0];
+    if (side === 0) { if (t <= 0) out.push([t === -1, p[1]]); } else if (t >= 0) out.push([t === 1, p[2]]);
   }
-  if (currentBlock) blocks.push(currentBlock);
-  
-  if (blocks.length === 0) {
-    container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted)">✅ 两个文件完全相同，没有差异</div>';
-    return;
-  }
-  
+  return out;
+}
+function wdOf(i) {
+  let c = S.wd.get(i);
+  if (c !== undefined) return c;
+  c = O.word === 'off' ? null : wordDiff(S.la[S.rows[3 * i + 1]], S.lb[S.rows[3 * i + 2]], O.word, O);
+  S.wd.set(i, c); return c;
+}
+function cell(n, html) {
+  return n < 0 ? '<div class="cell e"><span class="ln"></span><span class="tx"></span></div>'
+    : '<div class="cell"><span class="ln">' + (n + 1) + '</span><span class="tx">' + html + '</span></div>';
+}
+function splitRow(i) {
+  const R = S.rows, t = R[3 * i], a = R[3 * i + 1], b = R[3 * i + 2], h = S.rh[i], ch = h >= 0 ? S.choice.get(h) : undefined;
+  let L, Rr;
+  if (t === 3) { const c = wdOf(i); if (c && c.sim >= SIM) { L = segsHTML(sideSegs(c, 0)); Rr = segsHTML(sideSegs(c, 1)); } }
+  if (a >= 0 && L === undefined) L = fx(S.la[a]);
+  if (b >= 0 && Rr === undefined) Rr = fx(S.lb[b]);
+  return '<div class="row t' + t + (ch === 'b' ? ' dl' : ch === 'a' ? ' dr' : '') + '">' + cell(a, L) + cell(b, Rr) + '</div>';
+}
+function uniEq(i) {
+  const R = S.rows, a = R[3 * i + 1], b = R[3 * i + 2];
+  return '<div class="row u t0"><span class="ln">' + (a >= 0 ? a + 1 : '') + '</span><span class="ln">' + (b >= 0 ? b + 1 : '') + '</span><span class="sg"> </span><span class="tx">' + fx(a >= 0 ? S.la[a] : S.lb[b]) + '</span></div>';
+}
+function uniSide(i, s) {
+  const R = S.rows, t = R[3 * i], a = R[3 * i + 1], b = R[3 * i + 2], h = S.rh[i], ch = h >= 0 ? S.choice.get(h) : undefined;
+  let html;
+  if (t === 3) { const c = wdOf(i); if (c && c.sim >= SIM) html = segsHTML(sideSegs(c, s)); }
+  if (html === undefined) html = fx(s ? S.lb[b] : S.la[a]);
+  const rej = (s === 0 && ch === 'b') || (s === 1 && ch === 'a');
+  return '<div class="row u t' + (s ? 2 : 1) + (rej ? ' rej' : '') + '"><span class="ln">' + (s ? '' : a + 1) + '</span><span class="ln">' + (s ? b + 1 : '') + '</span><span class="sg">' + (s ? '+' : '−') + '</span><span class="tx">' + html + '</span></div>';
+}
+function inlineRow(i) {
+  const R = S.rows, t = R[3 * i], a = R[3 * i + 1], b = R[3 * i + 2];
+  if (t === 0) return uniEq(i);
+  if (t === 1) return uniSide(i, 0);
+  if (t === 2) return uniSide(i, 1);
+  const c = wdOf(i), ops = c ? c.ops : [[-1, S.la[a], ''], [1, '', S.lb[b]]];
   let html = '';
-  blocks.forEach((block, idx) => {
-    html += `<div class="inline-block" data-diff="true">`;
-    html += `<div class="inline-block-header">差异 #${idx + 1} — 行 ${block.startLeft || block.startRight}</div>`;
-    html += `<table class="diff-table">`;
-    for (const d of block.items) {
-      if (d.type === 'mod') {
-        const cd = charDiff(d.left, d.right);
-        html += `<tr class="diff-line-del"><td class="line-num">${d.leftLine}</td><td class="unified-prefix prefix-del">-</td><td class="line-content">${cd.left}</td></tr>`;
-        html += `<tr class="diff-line-add"><td class="line-num">${d.rightLine}</td><td class="unified-prefix prefix-add">+</td><td class="line-content">${cd.right}</td></tr>`;
-      } else if (d.type === 'del') {
-        html += `<tr class="diff-line-del"><td class="line-num">${d.leftLine}</td><td class="unified-prefix prefix-del">-</td><td class="line-content">${escapeHtml(d.left)}</td></tr>`;
-      } else if (d.type === 'add') {
-        html += `<tr class="diff-line-add"><td class="line-num">${d.rightLine}</td><td class="unified-prefix prefix-add">+</td><td class="line-content">${escapeHtml(d.right)}</td></tr>`;
-      }
+  for (let k = 0; k < ops.length; k++) {
+    const p = ops[k];
+    html += p[0] === 0 ? fx(p[2]) : p[0] < 0 ? '<del class="iw">' + fx(p[1]) + '</del>' : '<ins class="iw">' + fx(p[2]) + '</ins>';
+  }
+  return '<div class="row u t3"><span class="ln">' + (a + 1) + '</span><span class="ln">' + (b + 1) + '</span><span class="sg">~</span><span class="tx">' + html + '</span></div>';
+}
+function rangeLab(side, n0, n1, cnt) { return cnt ? side + ' ' + (n0 + 1) + (cnt > 1 ? '–' + n1 : '') : side + ' 第' + n0 + '行后'; }
+function hunkHead(h, inCard) {
+  const H = S.hunks[h], ch = S.choice.get(h);
+  const pk = (c, lab, tip) => '<button class="pk' + (ch === c ? ' on' : '') + '" data-pk="' + c + '" title="' + tip + '">' + lab + '</button>';
+  return '<div class="hh' + (!inCard && S.cur === h ? ' cur' : '') + '" data-h="' + h + '"><span class="hn">#' + (h + 1) + '</span><span class="ty ' + H.ty + '">' + { add: '新增', del: '删除', mod: '修改' }[H.ty] + '</span><span class="gr">' +
+    rangeLab('A', H.a0, H.a1, H.nd) + ' → ' + rangeLab('B', H.b0, H.b1, H.ni) + '</span><span class="pks">' +
+    pk('a', 'A', '采用 A 的版本 (a)') + pk('b', 'B', '采用 B 的版本 (b)') + pk('ab', 'A+B', '两者都保留（A 在前）') + '</span></div>';
+}
+function cardRows(h, narrow) {
+  const H = S.hunks[h], R = S.rows, lim = 12, expd = S.cardExp.has(h);
+  const end = expd ? H.e : Math.min(H.e, H.s + lim);
+  let body = '';
+  const ctxRow = r => (narrow ? uniEq(r) : splitRow(r)).replace('class="row ', 'class="row ctx ');
+  if (H.s > 0 && R[3 * (H.s - 1)] === 0) body += ctxRow(H.s - 1);
+  if (narrow) {
+    for (let r = H.s; r < end; r++) if (R[3 * r + 1] >= 0) body += uniSide(r, 0);
+    for (let r = H.s; r < end; r++) if (R[3 * r + 2] >= 0) body += uniSide(r, 1);
+  } else for (let r = H.s; r < end; r++) body += splitRow(r);
+  if (end < H.e) body += '<div class="more" data-more="' + h + '">展开其余 ' + (H.e - end) + ' 行 ▾</div>';
+  if (H.e < S.nr && R[3 * H.e] === 0) body += ctxRow(H.e);
+  return body;
+}
+function cardHTML(h) {
+  return '<div class="card' + (S.cur === h ? ' cur' : '') + '" data-h="' + h + '">' + hunkHead(h, true) + '<div class="cb">' + cardRows(h, isNarrow()) + '</div></div>';
+}
+function itemHTML(it) {
+  switch (it.k) {
+    case 0: return O.view === 'split' ? splitRow(it.r) : O.view === 'inline' ? inlineRow(it.r) : uniEq(it.r);
+    case 1: return hunkHead(it.h);
+    case 2: return '<div class="fold" data-fold="' + it.s + '">⋯ 展开 ' + (it.e - it.s) + ' 行未变化内容</div>';
+    case 3: return uniSide(it.r, it.s);
+    default: return cardHTML(it.h);
+  }
+}
+function estH(it) { return it.k === 1 ? 30 : it.k === 2 ? 26 : it.k === 4 ? 160 : LH(); }
+function chunkHTML(c) {
+  let o = ''; const e = Math.min(items.length, (c + 1) * CHk);
+  for (let i = c * CHk; i < e; i++) o += itemHTML(items[i]);
+  return o;
+}
+function estChunk(c) {
+  let h = 0; const e = Math.min(items.length, (c + 1) * CHk);
+  for (let i = c * CHk; i < e; i++) h += estH(items[i]);
+  return h;
+}
+function buildItems() {
+  const it = [], R = S.rows, n = S.nr, H = S.hunks, v = O.view;
+  let acc = 0;
+  S.hIdx = new Int32Array(H.length); S.hY = new Float64Array(H.length);
+  const push = o => { it.push(o); acc += estH(o); };
+  if (v === 'cards') {
+    for (let h = 0; h < H.length; h++) { S.hIdx[h] = it.length; S.hY[h] = acc; push({ k: 4, h }); }
+    items = it; S.totH = acc; return;
+  }
+  const ctx = O.ctx; let vis = null;
+  if (O.fold) {
+    vis = new Uint8Array(n);
+    for (let h = 0; h < H.length; h++) { const lo = Math.max(0, H[h].s - ctx), hi = Math.min(n, H[h].e + ctx); for (let r = lo; r < hi; r++) vis[r] = 1; }
+  }
+  let i = 0;
+  while (i < n) {
+    const hi = S.rh[i];
+    if (hi >= 0) {
+      const h = H[hi];
+      S.hIdx[hi] = it.length; S.hY[hi] = acc; push({ k: 1, h: hi });
+      if (v === 'unified') {
+        for (let r = h.s; r < h.e; r++) if (R[3 * r + 1] >= 0) push({ k: 3, r, s: 0 });
+        for (let r = h.s; r < h.e; r++) if (R[3 * r + 2] >= 0) push({ k: 3, r, s: 1 });
+      } else for (let r = h.s; r < h.e; r++) push({ k: 0, r });
+      i = h.e; continue;
     }
-    html += `</table></div>`;
-  });
-  
-  container.innerHTML = html;
-}
-
-function getVisibleIndices(diff, contextLines) {
-  const visible = new Set();
-  const changeIndices = [];
-  
-  diff.forEach((d, i) => {
-    if (d.type !== 'equal') changeIndices.push(i);
-  });
-  
-  if (changeIndices.length === 0) {
-    // All equal — show first and last few lines
-    diff.forEach((_, i) => {
-      if (i < contextLines || i >= diff.length - contextLines) visible.add(i);
-    });
-    return visible;
+    if (!vis || vis[i]) { push({ k: 0, r: i }); i++; continue; }
+    let j = i; while (j < n && !vis[j]) j++;
+    if (j - i <= 1 || S.exp.has(i)) { for (let r = i; r < j; r++) push({ k: 0, r }); }
+    else push({ k: 2, s: i, e: j });
+    i = j;
   }
-  
-  for (const ci of changeIndices) {
-    for (let k = Math.max(0, ci - contextLines); k <= Math.min(diff.length - 1, ci + contextLines); k++) {
-      visible.add(k);
-    }
+  items = it; S.totH = acc;
+}
+function dispLen(s) {
+  let n = 0; const t = O.tab;
+  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); n += c === 9 ? t : c > 0x2e7f ? 2 : 1; }
+  return n;
+}
+function maxLen() {
+  if (S.mlRows === S.rows && S.mlTab === O.tab) return S.ml;
+  let m = 0; const mul = Math.max(O.tab, 2);
+  const f = a => { for (let i = 0; i < a.length; i++) { const s = a[i]; if (s.length * mul > m) { const d = dispLen(s); if (d > m) m = d; } } };
+  f(S.la); f(S.lb);
+  S.ml = Math.min(m, 3000); S.mlRows = S.rows; S.mlTab = O.tab; return S.ml;
+}
+
+function fillChunk(el) {
+  if (el._f) return;
+  el._f = 1; el.innerHTML = chunkHTML(+el.dataset.c); el.style.height = '';
+}
+function unfillChunk(el) {
+  if (!el._f || !$('#sc').clientWidth) return; /* 面板隐藏时不要卸载 */
+  const var_h = (O.wrap || O.view === 'cards') ? el.offsetHeight : estChunk(+el.dataset.c);
+  el.style.height = var_h + 'px'; el.textContent = ''; el._f = 0;
+}
+function setupIO() {
+  if (io) io.disconnect();
+  io = new IntersectionObserver(es => { for (let i = 0; i < es.length; i++) { const e = es[i]; if (e.isIntersecting) fillChunk(e.target); else unfillChunk(e.target); } }, { root: $('#sc'), rootMargin: '1400px 0px' });
+  chunks.forEach(c => io.observe(c));
+}
+function refreshFilled() { chunks.forEach(el => { if (el._f) el.innerHTML = chunkHTML(+el.dataset.c); }); }
+
+function renderView(force) {
+  if (!force && !S.viewDirty) { drawRuler(); drawRibbon(); return; }
+  S.viewDirty = false; syncUI();
+  const sc = $('#sc'), vb = $('#vb'), st = sc.scrollTop, cards = O.view === 'cards';
+  CHk = cards ? 12 : 64;
+  buildItems();
+  $('#rb').hidden = !(cards && S.hunks.length);
+  document.documentElement.style.setProperty('--lnw', Math.max(2, String(Math.max(S.la.length, S.lb.length, 1)).length));
+  sc.style.setProperty('--cw', sc.clientWidth + 'px');
+  let minw = '100%';
+  if (!O.wrap && !cards && items.length) {
+    const lnw = Math.max(2, String(Math.max(S.la.length, S.lb.length, 1)).length) * .92 * CW + 13, ml = maxLen() * CW;
+    minw = Math.ceil(O.view === 'split' ? 2 * (lnw + ml + 18) : 2 * lnw + 1.6 * CW + ml + 24) + 'px';
   }
-  
-  return visible;
-}
-
-function getConsecutiveHiddenCount(startIdx, diff, visibleIndices) {
-  let count = 0;
-  for (let i = startIdx; i < diff.length && !visibleIndices.has(i); i++) {
-    count++;
+  vb.style.setProperty('--minw', minw); vb.className = cards ? 'cards' : '';
+  const em = $('#emsg');
+  if (!S.hunks.length) {
+    em.hidden = false;
+    em.innerHTML = (!S.A && !S.B) ? '<b>还没有内容</b>请在「输入」页粘贴、打开或拖入两份文本' :
+      '<b>✓ 两侧内容相同</b>' + ((O.ws !== 'none' || O.ic || O.ib) ? '（已应用忽略规则）' : '没有发现任何差异');
+  } else em.hidden = true;
+  const frag = document.createDocumentFragment(); chunks = [];
+  const nch = Math.ceil(items.length / CHk);
+  for (let c = 0; c < nch; c++) {
+    const el = document.createElement('div'); el.className = 'ck'; el.dataset.c = c; el.style.height = estChunk(c) + 'px'; el._f = 0;
+    frag.appendChild(el); chunks.push(el);
   }
-  return count;
+  vb.replaceChildren(frag);
+  sc.scrollTop = st;
+  setupIO(); drawRuler(); drawRibbon(); updateCurLab(); updateThumb();
 }
 
-// ==================== Stats ====================
-function updateStats(diff, linesA, linesB) {
-  let added = 0, deleted = 0, modified = 0;
-  for (const d of diff) {
-    if (d.type === 'add') added++;
-    else if (d.type === 'del') deleted++;
-    else if (d.type === 'mod') modified++;
+/* ---------- 概览条 / 全景带 ---------- */
+const HCOL = { add: '#30a46c', del: '#e5484d', mod: '#f5a524' };
+function fitCanvas(cv) {
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+  if (cv.width !== Math.round(w * d) || cv.height !== Math.round(h * d)) { cv.width = Math.round(w * d); cv.height = Math.round(h * d); }
+  const c = cv.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, w, h);
+  return { c, w, h };
+}
+function drawRuler() {
+  const { c, w, h } = fitCanvas($('#rlc'));
+  if (!S.hunks.length || !S.totH) return;
+  const lh = LH();
+  for (let i = 0; i < S.hunks.length; i++) {
+    const H = S.hunks[i], y = S.hY[i] / S.totH * h, hh = Math.max(3, (O.view === 'cards' ? 160 : (H.e - H.s) * lh) / S.totH * h);
+    c.globalAlpha = S.choice.has(i) ? .35 : 1;
+    c.fillStyle = HCOL[H.ty]; c.fillRect(1, y, w - 2, hh);
+    if (S.cur === i) { c.globalAlpha = 1; c.strokeStyle = '#4f46e5'; c.lineWidth = 2; c.strokeRect(0, y - 1, w, hh + 2); }
   }
-  
-  document.getElementById('statAdded').textContent = added;
-  document.getElementById('statDeleted').textContent = deleted;
-  document.getElementById('statModified').textContent = modified;
-  document.getElementById('statTotal').textContent = `${linesA.length} / ${linesB.length}`;
-  
-  const totalChanges = added + deleted + modified;
-  const totalLines = Math.max(linesA.length, linesB.length, 1);
-  const sim = Math.max(0, Math.round((1 - totalChanges / totalLines) * 100));
-  document.getElementById('similarity').textContent = sim + '%';
-  document.getElementById('similarityBar').style.width = sim + '%';
+  c.globalAlpha = 1;
 }
-
-// ==================== Navigation ====================
-function updateNavigation(diff) {
-  const navList = document.getElementById('diffNavList');
-  state.diffPositions = [];
-  let html = '';
-  let changeIdx = 0;
-  
-  for (let i = 0; i < diff.length; i++) {
-    const d = diff[i];
-    if (d.type === 'equal') continue;
-    
-    changeIdx++;
-    state.diffPositions.push(i);
-    
-    let badge = '', label = '', line = '';
-    if (d.type === 'add') {
-      badge = '<span class="badge badge-add">新增</span>';
-      label = d.right.substring(0, 30).trim() || '(空行)';
-      line = `行 ${d.rightLine}`;
-    } else if (d.type === 'del') {
-      badge = '<span class="badge badge-del">删除</span>';
-      label = d.left.substring(0, 30).trim() || '(空行)';
-      line = `行 ${d.leftLine}`;
-    } else if (d.type === 'mod') {
-      badge = '<span class="badge badge-mod">修改</span>';
-      label = d.left.substring(0, 30).trim() || '(空行)';
-      line = `行 ${d.leftLine}`;
-    }
-    
-    html += `<div class="diff-nav-item" onclick="jumpToDiff(${changeIdx - 1})" title="${escapeHtml(label)}">
-      ${badge}
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(label)}</span>
-      <span style="font-size:11px;color:var(--text-muted)">${line}</span>
-    </div>`;
-  }
-  
-  if (!html) {
-    html = '<div style="padding:20px;text-align:center;color:var(--text-muted)">✅ 没有差异</div>';
-  }
-  
-  navList.innerHTML = html;
+function updateThumb() {
+  const sc = $('#sc'), t = $('#rlt'), H = $('#rl').clientHeight, sh = sc.scrollHeight || 1;
+  t.style.top = (sc.scrollTop / sh * H) + 'px'; t.style.height = Math.max(6, sc.clientHeight / sh * H) + 'px';
 }
+let thumbRaf = 0;
+$('#sc').addEventListener('scroll', () => { if (!thumbRaf) thumbRaf = requestAnimationFrame(() => { thumbRaf = 0; updateThumb(); }); }, { passive: true });
+(function () {
+  const rl = $('#rl'); let down = false;
+  const go = e => { const r = rl.getBoundingClientRect(), sc = $('#sc'); sc.scrollTop = (e.clientY - r.top) / r.height * sc.scrollHeight - sc.clientHeight / 2; };
+  rl.addEventListener('pointerdown', e => { down = true; rl.setPointerCapture(e.pointerId); go(e); });
+  rl.addEventListener('pointermove', e => { if (down) go(e); });
+  rl.addEventListener('pointerup', () => { down = false; });
+  rl.addEventListener('pointercancel', () => { down = false; });
+})();
 
-function jumpToDiff(index) {
-  state.currentDiffIndex = index;
-  
-  // Highlight nav item
-  const items = document.querySelectorAll('.diff-nav-item');
-  items.forEach((el, i) => el.classList.toggle('active', i === index));
-  
-  // Scroll to diff in view
-  const diffElements = document.querySelectorAll('[data-diff="true"]');
-  let targetIdx = 0;
-  let count = 0;
-  
-  // Map nav index to DOM element
-  if (state.viewMode === 'sideBySide') {
-    const leftRows = document.querySelectorAll('#leftDiffTable [data-diff="true"]');
-    const rightRows = document.querySelectorAll('#rightDiffTable [data-diff="true"]');
-    
-    if (index < leftRows.length) {
-      leftRows[index]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    if (index < rightRows.length) {
-      rightRows[index]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  } else if (state.viewMode === 'inline') {
-    const blocks = document.querySelectorAll('.inline-block');
-    if (index < blocks.length) {
-      blocks[index]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  } else {
-    if (index < diffElements.length) {
-      diffElements[index]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }
-}
-
-function navigateDiff(direction) {
-  if (state.diffPositions.length === 0) return;
-  
-  if (direction === 'next') {
-    state.currentDiffIndex = (state.currentDiffIndex + 1) % state.diffPositions.length;
-  } else {
-    state.currentDiffIndex = (state.currentDiffIndex - 1 + state.diffPositions.length) % state.diffPositions.length;
-  }
-  
-  jumpToDiff(state.currentDiffIndex);
-}
-
-// ==================== Scroll Sync ====================
-function syncScroll() {
-  const leftPane = document.getElementById('leftPane');
-  const rightPane = document.getElementById('rightPane');
-  
-  let syncing = false;
-  
-  leftPane.addEventListener('scroll', () => {
-    if (syncing) return;
-    syncing = true;
-    rightPane.scrollTop = leftPane.scrollTop;
-    rightPane.scrollLeft = leftPane.scrollLeft;
-    requestAnimationFrame(() => syncing = false);
-  });
-  
-  rightPane.addEventListener('scroll', () => {
-    if (syncing) return;
-    syncing = true;
-    leftPane.scrollTop = rightPane.scrollTop;
-    leftPane.scrollLeft = rightPane.scrollLeft;
-    requestAnimationFrame(() => syncing = false);
-  });
-}
-
-// ==================== Actions ====================
-function compareDiff() {
-  const leftText = document.getElementById('leftText').value;
-  const rightText = document.getElementById('rightText').value;
-  
-  if (!leftText && !rightText) {
-    showToast('请输入要对比的文本内容', 'error');
-    return;
-  }
-  
-  const start = performance.now();
-  state.diffResult = computeDiff(leftText, rightText);
-  const elapsed = (performance.now() - start).toFixed(1);
-  
-  // Switch to diff mode
-  document.body.classList.remove('input-mode-active');
-  document.body.classList.add('diff-mode-active');
-  document.getElementById('inputArea').style.display = 'none';
-  
-  state.isDiffMode = true;
-  state.currentDiffIndex = -1;
-  
-  // Show appropriate view
-  setViewMode(state.viewMode);
-  
-  document.getElementById('navArrows').style.display = 'flex';
-  
-  const changes = state.diffResult.diff.filter(d => d.type !== 'equal').length;
-  showToast(`对比完成! 发现 ${changes} 处差异 (${elapsed}ms)`, changes > 0 ? 'info' : 'success');
-}
-
-function reRenderDiff() {
-  if (state.diffResult) renderDiff();
-}
-
-function backToEdit() {
-  document.body.classList.add('input-mode-active');
-  document.body.classList.remove('diff-mode-active');
-  document.getElementById('inputArea').style.display = 'flex';
-  
-  // Hide all diff containers
-  document.querySelectorAll('.diff-container').forEach(el => el.classList.remove('active'));
-  
-  state.isDiffMode = false;
-  document.getElementById('navArrows').style.display = 'none';
-}
-
-function swapTexts() {
-  const left = document.getElementById('leftText');
-  const right = document.getElementById('rightText');
-  const tmp = left.value;
-  left.value = right.value;
-  right.value = tmp;
-  
-  const lName = document.getElementById('leftFileName');
-  const rName = document.getElementById('rightFileName');
-  const tmpName = lName.textContent;
-  lName.textContent = rName.textContent;
-  rName.textContent = tmpName;
-  
-  showToast('已交换左右内容', 'success');
-  
-  if (state.isDiffMode) compareDiff();
-}
-
-function clearAll() {
-  document.getElementById('leftText').value = '';
-  document.getElementById('rightText').value = '';
-  document.getElementById('leftFileName').textContent = '未选择文件';
-  document.getElementById('rightFileName').textContent = '未选择文件';
-  state.diffResult = null;
-  backToEdit();
-  showToast('已清空所有内容', 'info');
-}
-
-function setViewMode(mode) {
-  state.viewMode = mode;
-  
-  // Update buttons
-  document.getElementById('btnSideBySide').classList.toggle('active', mode === 'sideBySide');
-  document.getElementById('btnUnified').classList.toggle('active', mode === 'unified');
-  document.getElementById('btnInline').classList.toggle('active', mode === 'inline');
-  
-  // Hide all, show selected
-  document.querySelectorAll('.diff-container').forEach(el => el.classList.remove('active'));
-  
-  if (mode === 'sideBySide') document.getElementById('diffSideBySide').classList.add('active');
-  else if (mode === 'unified') document.getElementById('diffUnified').classList.add('active');
-  else if (mode === 'inline') document.getElementById('diffInline').classList.add('active');
-  
-  if (state.diffResult) renderDiff();
-}
-
-function toggleCharDiff() {
-  state.charDiff = !state.charDiff;
-  document.getElementById('btnCharDiff').classList.toggle('active', state.charDiff);
-  if (state.diffResult) renderDiff();
-  showToast(state.charDiff ? '已启用字符级差异' : '已关闭字符级差异', 'info');
-}
-
-function toggleIgnoreWhitespace() {
-  state.ignoreWhitespace = !state.ignoreWhitespace;
-  document.getElementById('btnIgnoreWhitespace').classList.toggle('active', state.ignoreWhitespace);
-  if (state.isDiffMode) compareDiff();
-  showToast(state.ignoreWhitespace ? '忽略空白字符' : '不忽略空白字符', 'info');
-}
-
-function toggleIgnoreCase() {
-  state.ignoreCase = !state.ignoreCase;
-  document.getElementById('btnIgnoreCase').classList.toggle('active', state.ignoreCase);
-  if (state.isDiffMode) compareDiff();
-  showToast(state.ignoreCase ? '忽略大小写' : '区分大小写', 'info');
-}
-
-function toggleWordWrap() {
-  state.wordWrap = !state.wordWrap;
-  document.getElementById('btnWordWrap').classList.toggle('active', state.wordWrap);
-  document.getElementById('editorArea').classList.toggle('word-wrap', state.wordWrap);
-  showToast(state.wordWrap ? '已启用自动换行' : '已关闭自动换行', 'info');
-}
-
-function toggleSidebar() {
-  state.sidebarVisible = !state.sidebarVisible;
-  document.getElementById('sidebar').classList.toggle('collapsed', !state.sidebarVisible);
-}
-
-function toggleTheme() {
-  state.isLightTheme = !state.isLightTheme;
-  document.body.classList.toggle('light-theme', state.isLightTheme);
-  showToast(state.isLightTheme ? '浅色主题' : '深色主题', 'info');
-}
-
-// ==================== Search ====================
-function toggleSearch() {
-  const bar = document.getElementById('searchBar');
-  bar.classList.toggle('active');
-  if (bar.classList.contains('active')) {
-    document.getElementById('searchInput').focus();
-  }
-}
-
-function performSearch() {
-  const query = document.getElementById('searchInput').value.toLowerCase();
-  if (!query) {
-    document.getElementById('searchInfo').textContent = '0 个匹配';
-    return;
-  }
-  
-  // Search in diff content
-  const cells = document.querySelectorAll('.diff-table .line-content');
-  let count = 0;
-  state.searchMatches = [];
-  
-  cells.forEach(cell => {
-    const text = cell.textContent.toLowerCase();
-    if (text.includes(query)) {
-      count++;
-      state.searchMatches.push(cell);
-    }
-  });
-  
-  document.getElementById('searchInfo').textContent = `${count} 个匹配`;
-  state.searchIndex = count > 0 ? 0 : -1;
-  
-  if (count > 0 && state.searchMatches[0]) {
-    state.searchMatches[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-}
-
-function searchNext() {
-  if (state.searchMatches.length === 0) return;
-  state.searchIndex = (state.searchIndex + 1) % state.searchMatches.length;
-  state.searchMatches[state.searchIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  document.getElementById('searchInfo').textContent = `${state.searchIndex + 1} / ${state.searchMatches.length}`;
-}
-
-function searchPrev() {
-  if (state.searchMatches.length === 0) return;
-  state.searchIndex = (state.searchIndex - 1 + state.searchMatches.length) % state.searchMatches.length;
-  state.searchMatches[state.searchIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  document.getElementById('searchInfo').textContent = `${state.searchIndex + 1} / ${state.searchMatches.length}`;
-}
-
-// ==================== File Loading ====================
-function loadFile(side) {
-  const input = document.getElementById(side === 'left' ? 'fileInputLeft' : 'fileInputRight');
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      document.getElementById(side === 'left' ? 'leftText' : 'rightText').value = ev.target.result;
-      document.getElementById(side === 'left' ? 'leftFileName' : 'rightFileName').textContent = file.name;
-      showToast(`已加载: ${file.name}`, 'success');
-    };
-    reader.readAsText(file);
-    input.value = '';
+const RB = { pad: 22, barH: 12, geo: [] };
+function drawRibbon() {
+  const box = $('#rb'); if (box.hidden) return;
+  const { c, w, h } = fitCanvas($('#rbc'));
+  const na = Math.max(1, S.la.length), nb = Math.max(1, S.lb.length), pad = RB.pad, bh = RB.barH;
+  const X = (i, n) => pad + i / n * (w - pad - 8);
+  const yA = 8 + bh, yB = h - 8 - bh, mid = (yA + yB) / 2;
+  const cs = getComputedStyle(document.documentElement);
+  c.fillStyle = cs.getPropertyValue('--tx3').trim() || '#888'; c.font = '700 11px system-ui,sans-serif'; c.textBaseline = 'middle';
+  c.fillText('A', 7, 8 + bh / 2); c.fillText('B', 7, h - 8 - bh / 2);
+  c.fillStyle = cs.getPropertyValue('--bd').trim() || '#ddd';
+  c.fillRect(pad, 8, w - pad - 8, bh); c.fillRect(pad, h - 8 - bh, w - pad - 8, bh);
+  const rib = (a0, a1, b0, b1, col, al) => {
+    let ax0 = X(a0, na), ax1 = X(a1, na), bx0 = X(b0, nb), bx1 = X(b1, nb);
+    if (ax1 - ax0 < 1.6) { const m = (ax0 + ax1) / 2; ax0 = m - .8; ax1 = m + .8; }
+    if (bx1 - bx0 < 1.6) { const m = (bx0 + bx1) / 2; bx0 = m - .8; bx1 = m + .8; }
+    c.globalAlpha = al; c.fillStyle = col; c.beginPath();
+    c.moveTo(ax0, yA); c.bezierCurveTo(ax0, mid, bx0, mid, bx0, yB); c.lineTo(bx1, yB);
+    c.bezierCurveTo(bx1, mid, ax1, mid, ax1, yA); c.closePath(); c.fill();
+    return [ax0, ax1, bx0, bx1];
   };
-  input.click();
-}
-
-// ==================== Drag & Drop ====================
-function setupDragDrop() {
-  const leftTextarea = document.getElementById('leftText');
-  const rightTextarea = document.getElementById('rightText');
-  
-  [leftTextarea, rightTextarea].forEach((textarea, index) => {
-    const side = index === 0 ? 'left' : 'right';
-    
-    textarea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      textarea.style.borderColor = 'var(--accent)';
-    });
-    
-    textarea.addEventListener('dragleave', () => {
-      textarea.style.borderColor = '';
-    });
-    
-    textarea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      textarea.style.borderColor = '';
-      const file = e.dataTransfer.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        textarea.value = ev.target.result;
-        document.getElementById(side === 'left' ? 'leftFileName' : 'rightFileName').textContent = file.name;
-        showToast(`已加载: ${file.name}`, 'success');
-      };
-      reader.readAsText(file);
-    });
-  });
-}
-
-// ==================== Export ====================
-function exportDiff() {
-  if (!state.diffResult) {
-    showToast('请先执行对比', 'error');
-    return;
+  const R = S.rows, n = S.nr;
+  let sa = -1, sb = -1, ea = 0, eb = 0;
+  const flush = () => { if (sa >= 0) { rib(sa, ea, sb, eb, '#8b95a7', .16); sa = -1; } };
+  for (let i = 0; i < n; i++) {
+    const t = R[3 * i], a = R[3 * i + 1], b = R[3 * i + 2];
+    if (t === 0 && a >= 0 && b >= 0) { if (sa < 0) { sa = a; sb = b; } ea = a + 1; eb = b + 1; } else flush();
   }
-  
-  const { diff, linesA, linesB } = state.diffResult;
-  let added = 0, deleted = 0, modified = 0;
-  diff.forEach(d => {
-    if (d.type === 'add') added++;
-    else if (d.type === 'del') deleted++;
-    else if (d.type === 'mod') modified++;
-  });
-  
-  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>差异报告</title>
-<style>
-body{font-family:monospace;background:#1e1e2e;color:#cdd6f4;padding:20px}
-.header{background:#313244;padding:16px;border-radius:8px;margin-bottom:20px}
-.stats span{margin-right:16px}
-table{width:100%;border-collapse:collapse}
-td{padding:2px 8px;white-space:pre}
-.ln{color:#6c7086;text-align:right;width:50px;border-right:1px solid #45475a}
-.add{background:rgba(166,227,161,0.12)}
-.del{background:rgba(243,139,168,0.12)}
-.mod-del{background:rgba(249,226,175,0.12)}
-.green{color:#a6e3a1}.red{color:#f38ba8}.yellow{color:#f9e2af}
-</style></head><body>
-<div class="header">
-<h2>📊 差异对比报告</h2>
-<p>生成时间: ${new Date().toLocaleString()}</p>
-<div class="stats">
-<span class="green">+${added} 新增</span>
-<span class="red">-${deleted} 删除</span>
-<span class="yellow">~${modified} 修改</span>
-</div></div>
-<table>`;
-  
-  for (const d of diff) {
-    if (d.type === 'equal') {
-      html += `<tr><td class="ln">${d.leftLine}</td><td class="ln">${d.rightLine}</td><td> </td><td>${escapeHtml(d.left)}</td></tr>`;
-    } else if (d.type === 'del') {
-      html += `<tr class="del"><td class="ln">${d.leftLine}</td><td class="ln"></td><td class="red">-</td><td>${escapeHtml(d.left)}</td></tr>`;
-    } else if (d.type === 'add') {
-      html += `<tr class="add"><td class="ln"></td><td class="ln">${d.rightLine}</td><td class="green">+</td><td>${escapeHtml(d.right)}</td></tr>`;
-    } else if (d.type === 'mod') {
-      html += `<tr class="del"><td class="ln">${d.leftLine}</td><td class="ln"></td><td class="red">-</td><td>${escapeHtml(d.left)}</td></tr>`;
-      html += `<tr class="add"><td class="ln"></td><td class="ln">${d.rightLine}</td><td class="green">+</td><td>${escapeHtml(d.right)}</td></tr>`;
-    }
+  flush();
+  RB.geo = [];
+  for (let i = 0; i < S.hunks.length; i++) {
+    const H = S.hunks[i], col = HCOL[H.ty], dim = S.choice.has(i);
+    const g = rib(H.a0, H.a1, H.b0, H.b1, col, dim ? .4 : .85);
+    RB.geo.push(g);
+    c.globalAlpha = dim ? .4 : 1; c.fillStyle = col;
+    if (H.nd) c.fillRect(g[0], 8, Math.max(1.6, g[1] - g[0]), bh);
+    if (H.ni) c.fillRect(g[2], h - 8 - bh, Math.max(1.6, g[3] - g[2]), bh);
   }
-  
-  html += '</table></body></html>';
-  
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
+  if (S.cur >= 0 && RB.geo[S.cur]) {
+    const g = RB.geo[S.cur], H = S.hunks[S.cur];
+    rib(H.a0, H.a1, H.b0, H.b1, '#4f46e5', .35);
+    c.globalAlpha = 1; c.strokeStyle = '#4f46e5'; c.lineWidth = 2;
+    c.strokeRect(g[0] - 1, 7, Math.max(1.6, g[1] - g[0]) + 2, bh + 2); c.strokeRect(g[2] - 1, h - 9 - bh, Math.max(1.6, g[3] - g[2]) + 2, bh + 2);
+  }
+  c.globalAlpha = 1;
+}
+$('#rbc').addEventListener('click', e => {
+  const r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left, top = (e.clientY - r.top) < r.height / 2;
+  let best = -1, bd = 1e9;
+  RB.geo.forEach((g, i) => { const cx = top ? (g[0] + g[1]) / 2 : (g[2] + g[3]) / 2, d = Math.abs(cx - x); if (d < bd) { bd = d; best = i; } });
+  if (best >= 0 && bd < 40) gotoHunk(best);
+});
+let ribRaf = 0;
+function redrawMarks() { if (ribRaf) return; ribRaf = requestAnimationFrame(() => { ribRaf = 0; drawRuler(); drawRibbon(); }); }
+
+/* ---------- 导航 ---------- */
+function setCur(h) {
+  S.cur = h;
+  $('#vb .hh.cur, #vb .card.cur').forEach(e => e.classList.remove('cur'));
+  $('#vb [data-h="' + h + '"]').forEach(e => { if (e.classList.contains('card') || (e.classList.contains('hh') && !e.closest('.card'))) e.classList.add('cur'); });
+  updateCurLab(); redrawMarks();
+}
+function gotoHunk(h) {
+  const n = S.hunks.length; if (!n) { toast('没有差异可跳转'); return; }
+  h = ((h % n) + n) % n;
+  if (O.view !== 'cards' && S.hIdx[h] == null) return;
+  const sc = $('#sc'), ck = chunks[Math.floor(S.hIdx[h] / CHk)]; if (!ck) return;
+  fillChunk(ck); setCur(h);
+  const place = () => {
+    const el = ck.querySelector(O.view === 'cards' ? '.card[data-h="' + h + '"]' : '.hh[data-h="' + h + '"]'); if (!el) return;
+    const y = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - Math.min(120, sc.clientHeight * .25);
+    if (Math.abs(sc.scrollTop - y) > 3) sc.scrollTop = Math.max(0, y);
+  };
+  place(); setTimeout(place, 120);
+}
+function stepHunk(d) {
+  const n = S.hunks.length; if (!n) { toast('没有差异'); return; }
+  gotoHunk(S.cur < 0 ? (d > 0 ? 0 : n - 1) : S.cur + d);
+}
+$('#sc').addEventListener('click', e => {
+  const pk = e.target.closest('[data-pk]');
+  if (pk) { const hh = pk.closest('[data-h]'); pick(+hh.dataset.h, pk.dataset.pk); return; }
+  const f = e.target.closest('[data-fold]');
+  if (f) { S.exp.add(+f.dataset.fold); rebuildKeep(); return; }
+  const m = e.target.closest('[data-more]');
+  if (m) { S.cardExp.add(+m.dataset.more); refreshFilled(); return; }
+  const hh = e.target.closest('[data-h]');
+  if (hh && +hh.dataset.h !== S.cur) setCur(+hh.dataset.h);
+});
+function rebuildKeep() { S.viewDirty = true; renderView(true); }
+
+/* 尺寸变化：仅在宽度变化时重建（避免移动端地址栏伸缩造成抖动） */
+(function () {
+  let lastW = 0, t = 0;
+  new ResizeObserver(() => {
+    const sc = $('#sc'), w = sc.clientWidth; if (!w) return;
+    sc.style.setProperty('--cw', w + 'px');
+    if (w === lastW) { drawRuler(); drawRibbon(); updateThumb(); return; }
+    const first = lastW === 0; lastW = w;
+    if (first) return;
+    clearTimeout(t); t = setTimeout(() => { if (isDiffVisible()) { S.viewDirty = true; renderView(true); } }, 120);
+  }).observe($('#sc'));
+})();
+
+/* ================= 合并 / 结果编辑器（与 A、B 完全独立） ================= */
+function buildMerged(base) {
+  const R = S.rows, la = S.la, lb = S.lb, out = [];
+  const emitEq = r => {
+    const a = R[3 * r + 1], b = R[3 * r + 2];
+    if (base === 'b') { if (b >= 0) out.push(lb[b]); } else if (a >= 0) out.push(la[a]);
+  };
+  let i = 0;
+  for (let h = 0; h < S.hunks.length; h++) {
+    const H = S.hunks[h];
+    for (; i < H.s; i++) emitEq(i);
+    const ch = S.choice.get(h) || base, A = [], B = [];
+    for (let r = H.s; r < H.e; r++) { if (R[3 * r + 1] >= 0) A.push(la[R[3 * r + 1]]); if (R[3 * r + 2] >= 0) B.push(lb[R[3 * r + 2]]); }
+    const seq = ch === 'a' ? [A] : ch === 'b' ? [B] : ch === 'ab' ? [A, B] : [B, A];
+    seq.forEach(x => { for (let k = 0; k < x.length; k++) out.push(x[k]); });
+    i = H.e;
+  }
+  for (; i < S.nr; i++) emitEq(i);
+  const info = base === 'b' ? S.infoB : S.infoA;
+  return out.join('\n') + (out.length && info && info.nl ? '\n' : '');
+}
+function setResText(text) {
+  const ta = $('#ta-r'); ta.value = text; updateGut('r'); updateResInfo();
+}
+function updateResState() {
+  const c = $('#rstate');
+  if (S.resDirty) { c.className = 'chip warn'; c.textContent = '✎ 已手动编辑'; }
+  else { c.className = 'chip ok'; c.textContent = '● 自动同步'; c.title = '结果随「对比」中的选择自动生成；一旦手动编辑，将不再被自动覆盖'; }
+  $('#r-regen').hidden = !S.resDirty;
+}
+function updateResInfo() {
+  const v = $('#ta-r').value;
+  $('#rcnt').textContent = fmtN(v ? lineCount(v) : 0) + ' 行 · ' + fmtN(v.length) + ' 字符';
+}
+function autoResult() {
+  if (!S.resDirty) setResText(buildMerged(S.base));
+  updateResState();
+}
+function applyChoices() {
+  const ta = $('#ta-r'), text = buildMerged(S.base), prev = ta.value, was = S.resDirty;
+  if (prev === text) { S.resDirty = false; updateResState(); return; }
+  setResText(text); S.resDirty = false; updateResState();
+  if (was) toast('结果区的手动修改已被覆盖', '撤销', () => { setResText(prev); S.resDirty = true; updateResState(); });
+}
+function pick(h, c) {
+  if (S.choice.get(h) === c) S.choice.delete(h); else S.choice.set(h, c);
+  S.cur = h; refreshFilled(); updateCurLab(); redrawMarks(); applyChoices();
+}
+function batchPick(c) {
+  if (!S.hunks.length) { toast('没有差异'); return; }
+  S.choice.clear();
+  if (c) S.hunks.forEach((_, i) => S.choice.set(i, c));
+  refreshFilled(); redrawMarks(); applyChoices();
+  toast(c === 'a' ? '已全部采用 A' : c === 'b' ? '已全部采用 B' : c === 'ab' ? '已全部保留 A+B' : '已清除所有选择');
+}
+function commitRes(text, msg) {
+  const ta = $('#ta-r'), prev = ta.value, was = S.resDirty;
+  setResText(text); S.resDirty = true; updateResState(); saveSession();
+  toast(msg, '撤销', () => { setResText(prev); S.resDirty = was; updateResState(); });
+}
+$('#ta-r').addEventListener('input', () => { S.resDirty = true; updateResState(); updateGut('r'); updateResInfo(); saveSession(); });
+$('#name-r').addEventListener('input', () => { S.nameRTouched = true; saveSession(); });
+$('#r-base').addEventListener('change', e => {
+  S.base = e.target.value;
+  if (!S.resDirty) applyChoices(); else toast('已切换基准；点「重新生成」后生效');
+});
+$('#r-regen').onclick = () => {
+  const ta = $('#ta-r'), prev = ta.value, text = buildMerged(S.base);
+  setResText(text); S.resDirty = false; updateResState();
+  toast('已按当前选择重新生成', '撤销', () => { setResText(prev); S.resDirty = true; updateResState(); });
+};
+$('#r-undo').onclick = () => { $('#ta-r').focus(); document.execCommand('undo'); };
+$('#r-redo').onclick = () => { $('#ta-r').focus(); document.execCommand('redo'); };
+
+/* 光标位置 */
+let posRaf = 0;
+document.addEventListener('selectionchange', () => {
+  const ta = $('#ta-r'); if (document.activeElement !== ta || posRaf) return;
+  posRaf = requestAnimationFrame(() => {
+    posRaf = 0; const p = ta.selectionStart, before = ta.value.slice(0, p);
+    $('#rpos').textContent = '行 ' + lineCount(before) + '，列 ' + (p - before.lastIndexOf('\n'));
+  });
+});
+
+/* 整理工具 */
+function lines(fn) { return s => fn(s.split('\n')).join('\n'); }
+const TOOLS = [
+  ['去除行尾空格', s => s.replace(/[ \t]+$/gm, '')],
+  ['删除所有空行', lines(a => a.filter(l => l.trim() !== ''))],
+  ['合并连续空行', s => s.replace(/\n{3,}/g, '\n\n')],
+  ['删除重复行（保留首次）', lines(a => { const seen = new Set(); return a.filter(l => !seen.has(l) && seen.add(l)); })],
+  ['行排序 A → Z', lines(a => a.slice().sort((x, y) => x.localeCompare(y)))],
+  ['行排序 Z → A', lines(a => a.slice().sort((x, y) => y.localeCompare(x)))],
+  ['反转行序', lines(a => a.slice().reverse())],
+  ['去除首尾空行', s => s.replace(/^(?:[ \t]*\n)+|(?:\n[ \t]*)+$/g, '')],
+  ['Tab → 空格', s => s.replace(/\t/g, ' '.repeat(O.tab))],
+  ['行首空格 → Tab', s => s.replace(/^ +/gm, m => '\t'.repeat(Math.floor(m.length / O.tab)) + ' '.repeat(m.length % O.tab))],
+  ['转为大写', s => s.toUpperCase()],
+  ['转为小写', s => s.toLowerCase()],
+  ['格式化 JSON', s => JSON.stringify(JSON.parse(s), null, 2)],
+  ['压缩 JSON', s => JSON.stringify(JSON.parse(s))]
+];
+function runTool(t) {
+  const ta = $('#ta-r'), s = ta.selectionStart, e = ta.selectionEnd, sel = e > s, v = ta.value;
+  try {
+    const r = t[1](sel ? v.slice(s, e) : v);
+    commitRes(sel ? v.slice(0, s) + r + v.slice(e) : r, '已应用：' + t[0] + (sel ? '（所选内容）' : ''));
+  } catch (err) { toast('无法应用：' + String(err.message).slice(0, 50)); }
+}
+$('#r-tools').onclick = e => {
+  const items = TOOLS.map(t => ({ label: t[0], fn: () => runTool(t) }));
+  items.splice(8, 0, '-'); items.splice(13, 0, '-');
+  items.push('-', { label: '将结果载入为 A', fn: () => { setSide('a', $('#ta-r').value, $('#name-r').value, true); toast('已载入 A'); } },
+    { label: '将结果载入为 B', fn: () => { setSide('b', $('#ta-r').value, $('#name-r').value, true); toast('已载入 B'); } },
+    '-', { label: '清空结果', fn: () => commitRes('', '已清空结果') });
+  openMenu(e.currentTarget, items);
+};
+
+/* 查找替换 */
+const FR = { re: false, cs: false };
+function frRegex(g) {
+  const q = $('#f-q').value; if (!q) return null;
+  try { return new RegExp(FR.re ? q : q.replace(/[.*+?^${}()|[\]\\]/g, '\\${text}amp;'), (FR.cs ? '' : 'i') + (g ? 'g' : '') + 'm'); } catch (e) { return null; }
+}
+function frCount() {
+  const re = frRegex(true), v = $('#ta-r').value; let n = 0, m;
+  if (re) { while ((m = re.exec(v)) && n < 99999) { n++; if (m[0] === '') re.lastIndex++; } }
+  $('#f-cnt').textContent = $('#f-q').value ? (re ? n + ' 处' : '正则无效') : '';
+  return n;
+}
+function selectIn(ta, a, b) {
+  ta.setSelectionRange(a, b);
+  const line = lineCount(ta.value.slice(0, a)) - 1;
+  ta.scrollTop = Math.max(0, line * LH() - ta.clientHeight / 3);
+}
+function findNext(dir) {
+  const re = frRegex(true), ta = $('#ta-r'); if (!re) return false;
+  const v = ta.value; let m, found = null;
+  if (dir > 0) {
+    re.lastIndex = ta.selectionEnd; m = re.exec(v);
+    if (!m) { re.lastIndex = 0; m = re.exec(v); }
+    found = m;
+  } else {
+    let last = null, before = null, n = 0;
+    while ((m = re.exec(v)) && n++ < 99999) { if (m[0] === '') re.lastIndex++; last = m; if (m.index < ta.selectionStart) before = m; }
+    found = before || last;
+  }
+  if (!found) { toast('未找到'); return false; }
+  selectIn(ta, found.index, found.index + found[0].length); return true;
+}
+function openFind(show) {
+  const fb = $('#fbar'); fb.hidden = show === false ? true : !(show || fb.hidden);
+  $('#r-find').classList.toggle('on', !fb.hidden);
+  if (!fb.hidden) {
+    const ta = $('#ta-r'), sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+    if (sel && sel.indexOf('\n') < 0) $('#f-q').value = sel;
+    $('#f-q').focus(); $('#f-q').select(); frCount();
+  }
+}
+$('#r-find').onclick = () => openFind();
+$('#f-close').onclick = () => openFind(false);
+$('#f-q').addEventListener('input', frCount);
+$('#f-q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); findNext(e.shiftKey ? -1 : 1); } else if (e.key === 'Escape') openFind(false); });
+$('#f-r').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#f-one').click(); } });
+$('#f-next').onclick = () => findNext(1);
+$('#f-prev').onclick = () => findNext(-1);
+$('#f-case').onclick = e => { FR.cs = !FR.cs; e.currentTarget.classList.toggle('on', FR.cs); frCount(); };
+$('#f-re').onclick = e => { FR.re = !FR.re; e.currentTarget.classList.toggle('on', FR.re); frCount(); };
+$('#f-one').onclick = () => {
+  const ta = $('#ta-r'), re = frRegex(false); if (!re) return;
+  const s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(s, e), m = re.exec(sel), rep = $('#f-r').value;
+  if (m && m[0] === sel && sel !== '') {
+    const r = FR.re ? sel.replace(re, rep) : rep;
+    ta.setRangeText(r, s, e, 'end'); ta.dispatchEvent(new Event('input')); frCount();
+  }
+  findNext(1);
+};
+$('#f-all').onclick = () => {
+  const re = frRegex(true); if (!re) return;
+  const v = $('#ta-r').value, rep = $('#f-r').value, n = frCount();
+  if (!n) { toast('未找到'); return; }
+  commitRes(v.replace(re, FR.re ? rep : () => rep), '已替换 ' + n + ' 处'); frCount();
+};
+
+/* 下载 / 复制 */
+function resultBytesText() {
+  let t = $('#ta-r').value; const m = $('#r-eol').value;
+  const eol = m === 'lf' ? '\n' : m === 'crlf' ? '\r\n' : ((S.base === 'b' ? S.infoB : S.infoA) || {}).eol || '\n';
+  if (eol !== '\n') t = t.replace(/\n/g, eol);
+  return ($('#r-bom').value === '1' ? '\ufeff' : '') + t;
+}
+function download(name, text, type) {
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `diff-report-${Date.now()}.html`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('差异报告已导出', 'success');
+  a.href = URL.createObjectURL(new Blob([text], { type: type || 'text/plain;charset=utf-8' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
+function downloadResult() {
+  const v = $('#ta-r').value;
+  if (!v) { toast('结果为空，没有可下载的内容'); return; }
+  const name = ($('#name-r').value || 'merged.txt').trim() || 'merged.txt';
+  download(name, resultBytesText()); toast('已下载 ' + name);
+}
+async function copyText(t, msg) {
+  try { await navigator.clipboard.writeText(t); }
+  catch (e) { const x = document.createElement('textarea'); x.value = t; x.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(x); x.select(); try { document.execCommand('copy'); } catch (e2) {} x.remove(); }
+  toast(msg || '已复制');
+}
+$('#r-dl').onclick = downloadResult;
+$('#r-copy').onclick = () => { const v = $('#ta-r').value; if (!v) { toast('结果为空'); return; } copyText(v, '已复制结果'); };
 
-function copyDiff() {
-  if (!state.diffResult) {
-    showToast('请先执行对比', 'error');
-    return;
-  }
-  
-  const { diff } = state.diffResult;
-  let text = '';
-  for (const d of diff) {
-    if (d.type === 'equal') text += `  ${d.left}\n`;
-    else if (d.type === 'del') text += `- ${d.left}\n`;
-    else if (d.type === 'add') text += `+ ${d.right}\n`;
-    else if (d.type === 'mod') {
-      text += `- ${d.left}\n`;
-      text += `+ ${d.right}\n`;
-    }
-  }
-  
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('差异结果已复制到剪贴板', 'success');
-  }).catch(() => {
-    showToast('复制失败', 'error');
+/* ================= 导出 ================= */
+function buildPatch(ctx) {
+  const R = S.rows, n = S.nr, H = S.hunks;
+  if (!H.length) return '';
+  const cumA = new Int32Array(n + 1), cumB = new Int32Array(n + 1);
+  for (let i = 0; i < n; i++) { cumA[i + 1] = cumA[i] + (R[3 * i + 1] >= 0 ? 1 : 0); cumB[i + 1] = cumB[i] + (R[3 * i + 2] >= 0 ? 1 : 0); }
+  const out = ['--- a/' + ($('#name-a').value || 'A'), '+++ b/' + ($('#name-b').value || 'B')], wins = [];
+  H.forEach(h => {
+    const lo = Math.max(0, h.s - ctx), hi = Math.min(n, h.e + ctx), w = wins[wins.length - 1];
+    if (w && lo <= w[1]) w[1] = Math.max(w[1], hi); else wins.push([lo, hi]);
   });
+  wins.forEach(([lo, hi]) => {
+    let ca = 0, cb = 0, r = lo; const body = [];
+    while (r < hi) {
+      if (R[3 * r] === 0) {
+        const a = R[3 * r + 1], b = R[3 * r + 2];
+        if (a >= 0 && b >= 0) { body.push(' ' + S.la[a]); ca++; cb++; }
+        else if (a >= 0) { body.push('-' + S.la[a]); ca++; } else { body.push('+' + S.lb[b]); cb++; }
+        r++;
+      } else {
+        let e = r; while (e < hi && R[3 * e] !== 0) e++;
+        for (let k = r; k < e; k++) if (R[3 * k + 1] >= 0) { body.push('-' + S.la[R[3 * k + 1]]); ca++; }
+        for (let k = r; k < e; k++) if (R[3 * k + 2] >= 0) { body.push('+' + S.lb[R[3 * k + 2]]); cb++; }
+        r = e;
+      }
+    }
+    out.push('@@ -' + (ca ? cumA[lo] + 1 : cumA[lo]) + ',' + ca + ' +' + (cb ? cumB[lo] + 1 : cumB[lo]) + ',' + cb + ' @@');
+    for (let i = 0; i < body.length; i++) out.push(body[i]);
+  });
+  return out.join('\n') + '\n';
 }
-
-// ==================== Sample Data ====================
-function loadSample() {
-  document.getElementById('leftText').value = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>My Website</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <header>
-    <h1>Welcome to My Site</h1>
-    <nav>
-      <a href="/">Home</a>
-      <a href="/about">About</a>
-      <a href="/contact">Contact</a>
-    </nav>
-  </header>
-  <main>
-    <section class="hero">
-      <h2>Hello World</h2>
-      <p>This is a simple website example.</p>
-      <button onclick="alert('Hi!')">Click Me</button>
-    </section>
-    <section class="content">
-      <p>Some content goes here.</p>
-      <ul>
-        <li>Item 1</li>
-        <li>Item 2</li>
-        <li>Item 3</li>
-      </ul>
-    </section>
-  </main>
-  <footer>
-    <p>&copy; 2024 My Website</p>
-  </footer>
-</body>
-</html>`;
-
-  document.getElementById('rightText').value = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Awesome Website</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="theme.css">
-</head>
-<body>
-  <header class="main-header">
-    <h1>Welcome to My Awesome Site</h1>
-    <nav class="main-nav">
-      <a href="/">Home</a>
-      <a href="/about">About</a>
-      <a href="/blog">Blog</a>
-      <a href="/contact">Contact</a>
-    </nav>
-  </header>
-  <main>
-    <section class="hero">
-      <h2>Hello World!</h2>
-      <p>This is a modern website built with love.</p>
-      <button class="btn-primary" onclick="greet()">Get Started</button>
-    </section>
-    <section class="features">
-      <h3>Features</h3>
-      <div class="grid">
-        <div class="card">Feature 1</div>
-        <div class="card">Feature 2</div>
-        <div class="card">Feature 3</div>
-      </div>
-    </section>
-    <section class="content">
-      <p>Updated content with more details.</p>
-      <ul>
-        <li>Item 1 - Updated</li>
-        <li>Item 2 - Enhanced</li>
-        <li>Item 3</li>
-        <li>Item 4 - New!</li>
-      </ul>
-    </section>
-  </main>
-  <footer class="main-footer">
-    <p>&copy; 2025 My Awesome Website. All rights reserved.</p>
-  </footer>
-</body>
-</html>`;
-
-  document.getElementById('leftFileName').textContent = 'index_v1.html';
-  document.getElementById('rightFileName').textContent = 'index_v2.html';
-  showToast('示例数据已加载', 'success');
+function buildReport() {
+  const sv = { items, hIdx: S.hIdx, hY: S.hY, totH: S.totH, view: O.view, cs: S.choice };
+  let html = '';
+  try { O.view = 'split'; S.choice = new Map(); buildItems(); html = items.map(itemHTML).join('').replace(/<span class="pks">.*?<\/span>/g, ''); }
+  finally { items = sv.items; S.hIdx = sv.hIdx; S.hY = sv.hY; S.totH = sv.totH; O.view = sv.view; S.choice = sv.cs; }
+  const st = S.stats, na = esc($('#name-a').value || 'A'), nb = esc($('#name-b').value || 'B');
+  const rs = document.documentElement;
+  return '<!doctype html><html lang="zh-CN"' + (rs.hasAttribute('data-dark') ? ' data-dark' : '') + (rs.hasAttribute('data-cb') ? ' data-cb' : '') + ' style="' + (rs.getAttribute('style') || '') + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>差异报告 · ' + na + ' ↔ ' + nb + '</title><style>' + $('#css').textContent +
+    '\nbody{overflow:auto;height:auto}.rhd{padding:14px 16px;border-bottom:1px solid var(--bd);background:var(--surface);position:sticky;top:0;z-index:5;display:flex;gap:10px;flex-wrap:wrap;align-items:center}.rhd b{font-size:16px}.rbody{background:var(--surface)}.rbody .hh,.rbody .fold,#emsg{position:static;width:auto}</style></head><body class="wrap"><div class="rhd"><b>' + na + ' ↔ ' + nb + '</b><span class="chip warn">' + st.n + ' 处差异</span><span class="chip add">+' + st.add + '</span><span class="chip del">−' + st.del + '</span><span class="chip">相似度 ' + (st.sim * 100).toFixed(0) + '%</span><span style="color:var(--tx3);font-size:12px">由 Diffly 生成 · ' + new Date().toLocaleString() + '</span></div><div class="rbody">' +
+    (html || '<div id="emsg"><b>✓ 两侧内容相同</b></div>') + '</div></body></html>';
 }
-
-// ==================== Help ====================
-function showHelp() {
-  document.getElementById('helpModal').classList.add('active');
+function needDiff() { if (!S.hunks.length) { toast(S.A || S.B ? '两侧相同，没有差异可导出' : '请先输入内容'); return false; } return true; }
+function openExport(anchor) {
+  openMenu(anchor, [
+    { label: '下载合并结果', hint: 'Ctrl+S', fn: downloadResult },
+    { label: '复制合并结果', fn: () => $('#r-copy').click() },
+    '-',
+    { label: '下载补丁 .patch（统一 diff）', fn: () => { if (needDiff()) download(($('#name-b').value || 'changes') + '.patch', buildPatch(3)); } },
+    { label: '复制统一 diff 文本', fn: () => { if (needDiff()) copyText(buildPatch(3), '已复制 diff'); } },
+    { label: '下载 HTML 差异报告', fn: () => { if (needDiff()) download('diff-report.html', buildReport(), 'text/html;charset=utf-8'); } },
+    '-',
+    { label: '另存 A 为文件', fn: () => S.A ? download(($('#name-a').value || 'A.txt'), S.A) : toast('A 为空') },
+    { label: '另存 B 为文件', fn: () => S.B ? download(($('#name-b').value || 'B.txt'), S.B) : toast('B 为空') }
+  ]);
 }
+$('#b-exp').onclick = e => openExport(e.currentTarget);
 
-function closeHelp() {
-  document.getElementById('helpModal').classList.remove('active');
+/* ================= 工具栏 / 设置 / 快捷键 ================= */
+$('[data-o]').forEach(el => {
+  const k = el.dataset.o;
+  el.addEventListener('change', () => {
+    let v;
+    if (el.type === 'checkbox') v = el.checked;
+    else if (el.type === 'number') { v = +el.value; if (isNaN(v)) return; v = Math.min(+el.max, Math.max(+el.min, v)); }
+    else { v = el.value; if (typeof DEF[k] === 'number') v = +v; }
+    setOpt(k, v);
+  });
+});
+$('#q-ws').addEventListener('change', e => setOpt('ws', e.target.value));
+$('#q-ic').onclick = () => setOpt('ic', !O.ic);
+$('#q-fold').onclick = () => setOpt('fold', !O.fold);
+$('#q-wrap').onclick = () => setOpt('wrap', !O.wrap);
+$('#q-dual').onclick = () => {
+  S.dual = !S.dual; document.body.classList.toggle('dual', S.dual); syncUI();
+  if (isDiffVisible()) { S.viewDirty = true; renderView(true); }
+};
+$('#vseg').addEventListener('click', e => {
+  const b = e.target.closest('[data-v]'); if (!b) return;
+  setOpt('view', b.dataset.v);
+  if (S.cur >= 0 && S.hunks.length) gotoHunk(S.cur);
+});
+$('#b-prev').onclick = () => stepHunk(-1);
+$('#b-next').onclick = () => stepHunk(1);
+$('#q-batch').onclick = e => openMenu(e.currentTarget, [
+  { label: '全部采用 A', fn: () => batchPick('a') },
+  { label: '全部采用 B', fn: () => batchPick('b') },
+  { label: '全部保留 A+B', fn: () => batchPick('ab') },
+  { label: '清除所有选择', fn: () => batchPick(null) },
+  '-',
+  { label: O.fold ? '展开全部相同行' : '折叠相同行', fn: () => setOpt('fold', !O.fold) },
+  { label: '导出补丁 / 报告…', fn: () => openExport(e.currentTarget) }
+]);
+$('#b-theme').onclick = () => setOpt('theme', document.documentElement.hasAttribute('data-dark') ? 'light' : 'dark');
+$('#b-set').onclick = () => { syncUI(); $('#dlg-set').showModal(); };
+$('#b-help').onclick = () => $('#dlg-help').showModal();
+$('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d || e.target.closest('[data-close]')) d.close(); }));
+function applyAll() {
+  applyTheme(); applyFont(); applyWrap(); syncUI(); S.viewDirty = true;
+  updateGut('a'); updateGut('b'); updateGut('r'); scheduleDiff(0);
 }
+$('#s-reset').onclick = () => { Object.assign(O, DEF); LS.set('diffly.o', O); applyAll(); toast('已恢复默认设置'); };
+$('#s-wipe').onclick = () => { LS.del('diffly.s'); LS.del('diffly.o'); toast('本地保存的数据已清除'); };
 
-// ==================== Toast ====================
-function showToast(message, type = 'info') {
-  const container = document.getElementById('toastContainer');
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  
-  const icons = {
-    success: '✅',
-    error: '❌',
-    info: 'ℹ️'
-  };
-  
-  toast.innerHTML = `${icons[type] || 'ℹ️'} ${message}`;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
-}
-
-// ==================== Keyboard Shortcuts ====================
-document.addEventListener('keydown', (e) => {
-  // Ctrl+Enter: Compare
-  if (e.ctrlKey && e.key === 'Enter') {
-    e.preventDefault();
-    compareDiff();
-  }
-  
-  // Ctrl+F: Search
-  if (e.ctrlKey && e.key === 'f') {
-    e.preventDefault();
-    toggleSearch();
-  }
-  
-  // Ctrl+Shift+S: Swap
-  if (e.ctrlKey && e.shiftKey && e.key === 'S') {
-    e.preventDefault();
-    swapTexts();
-  }
-  
-  // Alt+Up/Down: Navigate diffs
-  if (e.altKey && e.key === 'ArrowUp') {
-    e.preventDefault();
-    navigateDiff('prev');
-  }
-  if (e.altKey && e.key === 'ArrowDown') {
-    e.preventDefault();
-    navigateDiff('next');
-  }
-  
-  // Escape
-  if (e.key === 'Escape') {
-    closeHelp();
-    const searchBar = document.getElementById('searchBar');
-    if (searchBar.classList.contains('active')) toggleSearch();
+document.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey, tag = e.target.tagName || '';
+  const typing = tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || e.target.isContentEditable;
+  if (e.key === 'Escape') closeMenu();
+  if (mod && e.key === 'Enter') { e.preventDefault(); setTab('diff'); return; }
+  if (mod && (e.key === 's' || e.key === 'S')) { e.preventDefault(); downloadResult(); return; }
+  if (mod && (e.key === 'f' || e.key === 'F') && e.target.closest && e.target.closest('#p-res')) { e.preventDefault(); openFind(true); return; }
+  if (e.altKey && /^Digit[123]$/.test(e.code)) { e.preventDefault(); setTab(['in', 'diff', 'res'][+e.code.slice(5) - 1]); return; }
+  if (typing || mod || e.altKey || document.querySelector('dialog[open]')) return;
+  if (e.key === '?') { $('#dlg-help').showModal(); return; }
+  if (!isDiffVisible()) return;
+  const k = e.key;
+  if (k === 'j' || k === 'n' || k === 'F3') stepHunk(1);
+  else if (k === 'k' || k === 'p') stepHunk(-1);
+  else if (k === 'a' || k === 'b' || k === 'x') {
+    if (S.cur < 0) { toast('先用 j / k 选中一处差异'); return; }
+    if (k === 'x') { S.choice.delete(S.cur); refreshFilled(); redrawMarks(); applyChoices(); } else pick(S.cur, k);
+  } else if (k === 'v') {
+    const vs = ['split', 'unified', 'inline', 'cards'];
+    setOpt('view', vs[(vs.indexOf(O.view) + 1) % 4]); if (S.cur >= 0) gotoHunk(S.cur);
   }
 });
 
-// ==================== Tab in textarea ====================
-document.querySelectorAll('textarea').forEach(textarea => {
-  textarea.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      textarea.value = textarea.value.substring(0, start) + '  ' + textarea.value.substring(end);
-      textarea.selectionStart = textarea.selectionEnd = start + 2;
-    }
-  });
-});
+/* ================= 初始化 ================= */
+function init() {
+  applyTheme(); applyFont(); applyWrap(); mkWorker();
+  const firstVisit = !LS.get('diffly.o');
+  const sv = LS.get('diffly.s');
+  if (O.autosave && sv && (sv.a || sv.b)) {
+    S.A = sv.a || ''; S.B = sv.b || '';
+    $('#ta-a').value = S.A; $('#ta-b').value = S.B;
+    $('#name-a').value = sv.na || '原文'; $('#name-b').value = sv.nb || '修改'; $('#name-r').value = sv.nr || 'merged.txt';
+    $('#meta-a').textContent = S.A ? metaOf(S.A) : ''; $('#meta-b').textContent = S.B ? metaOf(S.B) : '';
+    if (sv.r != null) { $('#ta-r').value = sv.r; S.resDirty = true; }
+    toast('已恢复上次的内容');
+  } else if (firstVisit) {
+    S.A = SAMPLE_A; S.B = SAMPLE_B;
+    $('#ta-a').value = S.A; $('#ta-b').value = S.B;
+    $('#name-a').value = 'greet.old.js'; $('#name-b').value = 'greet.new.js'; $('#name-r').value = 'greet.merged.js';
+    $('#meta-a').textContent = metaOf(S.A); $('#meta-b').textContent = metaOf(S.B);
+  }
+  LS.set('diffly.o', O);
+  syncUI(); updateGut('a'); updateGut('b'); updateGut('r'); updateResState(); updateResInfo();
+  requestDiffNow();
+  if (firstVisit && S.A) { setTab('diff'); toast('已载入示例；清空后输入你自己的内容即可'); }
+  else setTab('in');
+}
+init();
+})();
 
-// ==================== Init ====================
-setupDragDrop();
+
+
+
 </script>
 </body>
 </html>
