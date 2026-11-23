@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VirtualBox 输入文字命令生成器</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #dbe3ee;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #059669;
+      --code-bg: #0f172a;
+      --code-text: #e5eefb;
+      --shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 180px);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+    .header {
+      margin-bottom: 24px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 720px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+    .card h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .step {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #eff6ff;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      border: 1px solid #cfd9e6;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input[type="text"]:focus, textarea:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 720px) {
+      .row { grid-template-columns: 1fr; }
+      .card { padding: 18px; }
+    }
+    .output-block {
+      margin-top: 16px;
+    }
+    .output-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .output-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #334155;
+    }
+    .code {
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      border: 1px solid #1e293b;
+      min-height: 52px;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary {
+      background: #fff;
+      color: #334155;
+      border-color: #cfd9e6;
+    }
+    .btn-secondary:hover { background: #f8fafc; border-color: #94a3b8; }
+    .btn-small { padding: 7px 12px; font-size: 12px; }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .status {
+      font-size: 12px;
+      color: var(--success);
+      min-height: 18px;
+      margin-top: 8px;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .status.show { opacity: 1; }
+    .note {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #475569;
+    }
+    .note ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+    .note li + li { margin-top: 4px; }
+    .warn {
+      color: #b45309;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+    .warn.show { display: block; }
+    .footer {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+    code.inline {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: #e8eef6;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.92em;
+      color: #0f172a;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="badge">VirtualBox 小工具</div>
+      <h1>输入文字命令生成器</h1>
+      <p class="subtitle">填写虚拟机名称和要输入的内容，自动生成 <code class="inline">VBoxManage controlvm ... keyboardputstring</code> 命令，复制到主机命令行执行即可。</p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2><span class="step">1</span>填写参数</h2>
+
+        <div class="field">
+          <label for="vboxPath">VBoxManage 路径</label>
+          <input type="text" id="vboxPath" value="C:\Program Files\Oracle\VirtualBox\VBoxManage.exe" spellcheck="false">
+          <div class="hint">默认是 Windows 下 VirtualBox 的常见安装路径；如果你装在别处，改成自己的路径。</div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="vmName">虚拟机名称 / UUID</label>
+            <input type="text" id="vmName" value="你的虚拟机名" placeholder="例如：Ubuntu 22.04" spellcheck="false">
+            <div class="hint">在 VirtualBox 主界面左侧看到的名字，或虚拟机 UUID。</div>
+          </div>
+          <div class="field">
+            <label for="quoteStyle">命令格式</label>
+            <input type="text" id="quoteStyle" value="Windows CMD / PowerShell" disabled>
+            <div class="hint">生成适合在 Windows 主机命令行直接粘贴的命令。</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="textInput">要输入到虚拟机的内容</label>
+          <textarea id="textInput" placeholder="在这里输入你想让虚拟机自动键入的文字，例如命令、路径、密码提示等...">hello world</textarea>
+          <div class="hint">此命令会模拟键盘逐字输入。中文或特殊字符可能不适合用 <code class="inline">keyboardputstring</code>，建议优先用英文/ASCII 内容。</div>
+          <div class="warn" id="charWarn"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step">2</span>复制命令</h2>
+
+        <div class="output-block">
+          <div class="output-head">
+            <div class="output-title">输入文字命令（keyboardputstring）</div>
+            <button class="btn btn-primary btn-small" onclick="copyText('cmdType', this)">复制命令</button>
+          </div>
+          <div class="code" id="cmdType"></div>
+        </div>
+
+        <div class="output-block">
+          <div class="output-head">
+            <div class="output-title">按回车命令（keyboardputscancode）</div>
+            <button class="btn btn-secondary btn-small" onclick="copyText('cmdEnter', this)">复制命令</button>
+          </div>
+          <div class="code" id="cmdEnter"></div>
+        </div>
+
+        <div class="output-block">
+          <div class="output-head">
+            <div class="output-title">输入后自动回车（两条命令一起）</div>
+            <button class="btn btn-secondary btn-small" onclick="copyText('cmdBoth', this)">复制两条</button>
+          </div>
+          <div class="code" id="cmdBoth"></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" onclick="copyText('cmdType', this)">复制输入文字命令</button>
+          <button class="btn btn-secondary" onclick="copyText('cmdEnter', this)">只复制回车命令</button>
+          <button class="btn btn-secondary" onclick="copyText('cmdBoth', this)">复制输入+回车</button>
+        </div>
+        <div class="status" id="status"></div>
+
+        <div class="note" style="margin-top:18px;">
+          <strong>使用说明</strong>
+          <ul>
+            <li>在主机上打开 <code class="inline">CMD</code> 或 <code class="inline">PowerShell</code>，粘贴命令并回车执行。</li>
+            <li>执行前请确保虚拟机正在运行，并且焦点在你想输入的输入框/终端里。</li>
+            <li><code class="inline">keyboardputstring</code> 只负责“打字”，不会自动按回车；需要回车请用第二条命令。</li>
+            <li>此方法不依赖 Guest Additions，适合安装系统、登录界面等剪贴板不可用的场景。</li>
+            <li>如果要输入中文或长文本，优先使用 VirtualBox 的“共享剪贴板 + Guest Additions”。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">本页面为本地单文件工具，可直接保存后在浏览器打开使用。</div>
+  </div>
+
+  <script>
+    const vboxPathEl = document.getElementById('vboxPath');
+    const vmNameEl = document.getElementById('vmName');
+    const textInputEl = document.getElementById('textInput');
+    const cmdTypeEl = document.getElementById('cmdType');
+    const cmdEnterEl = document.getElementById('cmdEnter');
+    const cmdBothEl = document.getElementById('cmdBoth');
+    const statusEl = document.getElementById('status');
+    const charWarnEl = document.getElementById('charWarn');
+
+    function normalizeVmName(name) {
+      const trimmed = (name || '').trim();
+      return trimmed.length ? trimmed : '你的虚拟机名';
+    }
+
+    function normalizePath(path) {
+      const trimmed = (path || '').trim();
+      return trimmed.length ? trimmed : 'VBoxManage';
+    }
+
+    function quoteArg(value) {
+      // Wrap in double quotes for Windows command lines.
+      // Escape embedded double quotes by doubling them for cmd robustness in many cases;
+      // also keep it readable. Users should avoid double quotes in input when possible.
+      const v = String(value).replace(/"/g, '\\"');
+      return '"' + v + '"';
+    }
+
+    function quoteExe(path) {
+      const p = normalizePath(path);
+      // If already quoted, keep as-is.
+      if (/^".*"$/.test(p)) return p;
+      return '"' + p.replace(/"/g, '') + '"';
+    }
+
+    function analyzeText(text) {
+      const warnings = [];
+      if (/[^\x09\x0A\x0D\x20-\x7E]/.test(text)) {
+        warnings.push('检测到非 ASCII 字符（如中文/全角符号）。keyboardputstring 可能无法正确输入，建议改用共享剪贴板。');
+      }
+      if (text.includes('"')) {
+        warnings.push('内容包含双引号 (")，已在命令中做了基本转义；如遇命令行解析问题，建议避免双引号或改用 keyboardputfile。');
+      }
+      if (text.includes('%')) {
+        warnings.push('内容包含百分号 (%)，在 CMD 批处理/某些场景下可能被解释。直接在命令行粘贴通常可用，必要时请改用 PowerShell 或 keyboardputfile。');
+      }
+      if (text.includes('\n') || text.includes('\r')) {
+        warnings.push('内容包含换行。keyboardputstring 不会可靠地输入换行，请拆成多条命令，并在需要的位置插入回车扫描码命令。');
+      }
+      return warnings;
+    }
+
+    function buildCommands() {
+      const vm = normalizeVmName(vmNameEl.value);
+      const exe = quoteExe(vboxPathEl.value);
+      const rawText = textInputEl.value;
+      // Convert newlines to spaces for the single keyboardputstring command preview? No: better preserve user intent warning.
+      // We'll generate command using the text as-is on one line by escaping newlines visibly is bad.
+      // Instead, for command generation, replace CRLF/CR/LF with literal \n is wrong. We'll keep it but warn; command will contain actual newline which is not valid.
+      // Better: flatten newlines to \\n? No. We'll generate using first line? No.
+      // Practical: replace newlines with spaces for the generated single command and warn clearly.
+      let textForCmd = rawText.replace(/\r\n|\r|\n/g, ' ');
+      const vmArg = quoteArg(vm);
+      const textArg = quoteArg(textForCmd);
+
+      const typeCmd = exe + ' controlvm ' + vmArg + ' keyboardputstring ' + textArg;
+      const enterCmd = exe + ' controlvm ' + vmArg + ' keyboardputscancode 1c 9c';
+      const bothCmd = typeCmd + '\r\n' + enterCmd;
+
+      cmdTypeEl.textContent = typeCmd;
+      cmdEnterEl.textContent = enterCmd;
+      cmdBothEl.textContent = bothCmd;
+
+      const warnings = analyzeText(rawText);
+      if (warnings.length) {
+        charWarnEl.innerHTML = warnings.map(w => '⚠️ ' + escapeHtml(w)).join('<br>');
+        charWarnEl.classList.add('show');
+      } else {
+        charWarnEl.innerHTML = '';
+        charWarnEl.classList.remove('show');
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    async function copyFromElement(id) {
+      const text = document.getElementById(id).textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (e) {
+          // fallback below
+        }
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      return ok;
+    }
+
+    async function copyText(id, btn) {
+      const ok = await copyFromElement(id);
+      const old = btn ? btn.textContent : '';
+      if (btn) {
+        btn.textContent = ok ? '已复制' : '复制失败';
+        setTimeout(() => { btn.textContent = old; }, 1200);
+      }
+      statusEl.textContent = ok ? '已复制到剪贴板，可直接粘贴到 CMD/PowerShell 执行。' : '复制失败，请手动选中命令复制。';
+      statusEl.classList.add('show');
+      clearTimeout(copyText._timer);
+      copyText._timer = setTimeout(() => { statusEl.classList.remove('show'); }, 2200);
+    }
+
+    ['input', 'change'].forEach(evt => {
+      vboxPathEl.addEventListener(evt, buildCommands);
+      vmNameEl.addEventListener(evt, buildCommands);
+      textInputEl.addEventListener(evt, buildCommands);
+    });
+
+    buildCommands();
+  </script>
+</body>
+</html>
